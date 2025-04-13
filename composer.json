@@ -1,0 +1,36 @@
+{
+    "name": "simbiat/ffxiv-tracker",
+    "type": "library",
+    "keywords": [
+        "final",
+        "php",
+        "fantasy",
+        "tracker",
+        "xiv",
+        "lodestone"
+    ],
+    "description": "Library to track changes of entities from Final Fantasy XIV's Lodestone.",
+    "homepage": "https://github.com/Simbiat/FFXIV-Tracker",
+    "license": "AGPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Dmitrii Kustov",
+            "email": "support@simbiat.dev",
+            "homepage": "https://www.simbiat.dev",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "simbiat/database": "^2.12"
+    },
+    "autoload": {
+        "psr-4": {
+            "Simbiat\\FFXIV\\": "src/"
+        }
+    },
+    "support": {
+        "issues": "https://github.com/Simbiat/FFXIV-Tracker/issues",
+        "source": "https://github.com/Simbiat/FFXIV-Tracker"
+    }
+}
