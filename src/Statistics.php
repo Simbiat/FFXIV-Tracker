@@ -8,7 +8,7 @@ use Simbiat\Arrays\Converters;
 use Simbiat\Arrays\Editors;
 use Simbiat\Arrays\Splitters;
 use Simbiat\Cron\TaskInstance;
-use Simbiat\Database\Controller;
+use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use function in_array;
 
@@ -33,38 +33,38 @@ class Statistics
     {
         $data = [];
         #Sanitize type
-        if (!in_array($type, self::statisticsType)) {
+        if (!in_array($type, self::statisticsType, true)) {
             $type = 'other';
         }
-        #Create path if missing
+        #Create a path if missing
         if (!is_dir(Config::$statistics) && !mkdir(Config::$statistics) && !is_dir(Config::$statistics)) {
             throw new \RuntimeException(\sprintf('Directory "%s" was not created', Config::$statistics));
         }
         $cachePath = Config::$statistics.$type.'.json';
-        #Get connection object for slight optimization
+        #Get a connection object for slight optimization
         $dbCon = Config::$dbController;
         $data['time'] = time();
         switch ($type) {
             case 'raw':
-                $this->getRaw($data, $dbCon);
+                $this->getRaw($data);
                 break;
             case 'characters':
-                $this->getCharacters($data, $dbCon);
+                $this->getCharacters($data);
                 break;
             case 'groups':
-                $this->getGroups($data, $dbCon);
+                $this->getGroups($data);
                 break;
             case 'achievements':
-                $this->getAchievements($data, $dbCon);
+                $this->getAchievements($data);
                 break;
             case 'timelines':
-                $this->getTimelines($data, $dbCon);
+                $this->getTimelines($data);
                 break;
             case 'bugs':
-                $this->getBugs($data, $dbCon);
+                $this->getBugs($data);
                 break;
             case 'other':
-                $this->getOthers($data, $dbCon);
+                $this->getOthers($data);
                 break;
         }
         unset($dbCon);
@@ -79,14 +79,13 @@ class Statistics
     /**
      * Get data raw data for character statistics based on counts
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getRaw(array &$data, Controller $dbCon): void
+    private function getRaw(array &$data): void
     {
-        $data['raw'] = $dbCon->selectAll(
+        $data['raw'] = Select::selectAll(
             'SELECT COUNT(*) as `count`, `ffxiv__clan`.`race`, `ffxiv__clan`.`clan`, `ffxiv__character`.`genderid`, `ffxiv__guardian`.`guardian`, `ffxiv__city`.`city`, `ffxiv__grandcompany`.`gcName` FROM `ffxiv__character`
                                 LEFT JOIN `ffxiv__clan` ON `ffxiv__character`.`clanid`=`ffxiv__clan`.`clanid`
                                 LEFT JOIN `ffxiv__city` ON `ffxiv__character`.`cityid`=`ffxiv__city`.`cityid`
@@ -100,40 +99,39 @@ class Statistics
     /**
      * Get data for character-based statistics
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getCharacters(array &$data, Controller $dbCon): void
+    private function getCharacters(array &$data): void
     {
         #Jobs popularity
-        $data['characters']['jobs'] = $dbCon->selectPair(
+        $data['characters']['jobs'] = Select::selectPair(
             'SELECT `name`, SUM(`level`) as `sum` FROM `ffxiv__character_jobs` LEFT JOIN `ffxiv__jobs` ON `ffxiv__jobs`.`jobid`=`ffxiv__character_jobs`.`jobid` GROUP BY `ffxiv__character_jobs`.`jobid` ORDER BY `sum` DESC;'
         );
         #Most name changes
-        $data['characters']['changes']['name'] = $dbCon->countUnique('ffxiv__character_names', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['changes']['name'] = Select::countUnique('ffxiv__character_names', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['changes']['name'], 'value', 'name');
         #Most reincarnation
-        $data['characters']['changes']['clan'] = $dbCon->countUnique('ffxiv__character_clans', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['changes']['clan'] = Select::countUnique('ffxiv__character_clans', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['changes']['clan'], 'value', 'name');
         #Most servers
-        $data['characters']['changes']['server'] = $dbCon->countUnique('ffxiv__character_servers', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['changes']['server'] = Select::countUnique('ffxiv__character_servers', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['changes']['server'], 'value', 'name');
         #Most companies
-        $data['characters']['groups']['Free Companies'] = $dbCon->countUnique('ffxiv__freecompany_character', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['groups']['Free Companies'] = Select::countUnique('ffxiv__freecompany_character', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['groups']['Free Companies'], 'value', 'name');
         #Most PvP teams
-        $data['characters']['groups']['PvP Teams'] = $dbCon->countUnique('ffxiv__pvpteam_character', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['groups']['PvP Teams'] = Select::countUnique('ffxiv__pvpteam_character', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['groups']['PvP Teams'], 'value', 'name');
         #Most x-linkshells
-        $data['characters']['groups']['Linkshells'] = $dbCon->countUnique('ffxiv__linkshell_character', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['groups']['Linkshells'] = Select::countUnique('ffxiv__linkshell_character', 'characterid', '', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['groups']['Linkshells'], 'value', 'name');
         #Most linkshells
-        $data['characters']['groups']['simLinkshells'] = $dbCon->countUnique('ffxiv__linkshell_character', 'characterid', '`ffxiv__linkshell_character`.`current`=1', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
+        $data['characters']['groups']['simLinkshells'] = Select::countUnique('ffxiv__linkshell_character', 'characterid', '`ffxiv__linkshell_character`.`current`=1', 'ffxiv__character', 'INNER', 'characterid', '`tempresult`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`', 'DESC', 20, [], true);
         Editors::renameColumn($data['characters']['groups']['simLinkshells'], 'value', 'name');
         #Groups affiliation
-        $data['characters']['groups']['participation'] = $dbCon->selectAll('
+        $data['characters']['groups']['participation'] = Select::selectAll('
                         SELECT COUNT(*) as `count`,
                             (CASE
                                 WHEN (`fc`=1 AND `pvp`=0 AND `ls`=0) THEN \'Free Company only\'
@@ -155,101 +153,98 @@ class Statistics
                         GROUP BY `affiliation`;
                     ');
         #Get characters with most PvP matches. Using regular SQL since we do not count unique values, but rather use the regular column values
-        $data['characters']['most_pvp'] = $dbCon->selectAll('SELECT `ffxiv__character`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`, `pvp_matches` AS `count` FROM `ffxiv__character` ORDER BY `ffxiv__character`.`pvp_matches` DESC LIMIT 20');
+        $data['characters']['most_pvp'] = Select::selectAll('SELECT `ffxiv__character`.`characterid` AS `id`, `ffxiv__character`.`avatar` AS `icon`, \'character\' AS `type`, `ffxiv__character`.`name`, `pvp_matches` AS `count` FROM `ffxiv__character` ORDER BY `ffxiv__character`.`pvp_matches` DESC LIMIT 20');
         #Characters
-        $data['servers']['characters'] = $dbCon->countUnique('ffxiv__character', 'serverid', '`ffxiv__character`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__character`.`genderid`, `ffxiv__server`.`server`', 'DESC', 0, ['`ffxiv__character`.`genderid`']);
+        $data['servers']['characters'] = Select::countUnique('ffxiv__character', 'serverid', '`ffxiv__character`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__character`.`genderid`, `ffxiv__server`.`server`', 'DESC', 0, ['`ffxiv__character`.`genderid`']);
         
     }
     
     /**
      * Get data for statistics related to different groups
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getGroups(array &$data, Controller $dbCon): void
+    private function getGroups(array &$data): void
     {
         #Get most popular estate locations
-        $data['freecompany']['estate'] = Splitters::topAndBottom($dbCon->countUnique('ffxiv__freecompany', 'estateid', '`ffxiv__freecompany`.`deleted` IS NULL AND `ffxiv__freecompany`.`estateid` IS NOT NULL', 'ffxiv__estate', 'INNER', 'estateid', '`ffxiv__estate`.`area`, `ffxiv__estate`.`plot`, CONCAT(`ffxiv__estate`.`area`, \', plot \', `ffxiv__estate`.`plot`)'), 20);
+        $data['freecompany']['estate'] = Splitters::topAndBottom(Select::countUnique('ffxiv__freecompany', 'estateid', '`ffxiv__freecompany`.`deleted` IS NULL AND `ffxiv__freecompany`.`estateid` IS NOT NULL', 'ffxiv__estate', 'INNER', 'estateid', '`ffxiv__estate`.`area`, `ffxiv__estate`.`plot`, CONCAT(`ffxiv__estate`.`area`, \', plot \', `ffxiv__estate`.`plot`)'), 20);
         #Get statistics by activity time
-        $data['freecompany']['active'] = $dbCon->sumUnique('ffxiv__freecompany', 'activeid', [1, 2, 3], ['Always', 'Weekdays', 'Weekends'], '`ffxiv__freecompany`.`deleted` IS NULL', 'ffxiv__timeactive', 'INNER', 'activeid', 'IF(`ffxiv__freecompany`.`recruitment`=1, \'Recruiting\', \'Not recruiting\') AS `recruiting`');
+        $data['freecompany']['active'] = Select::sumUnique('ffxiv__freecompany', 'activeid', [1, 2, 3], ['Always', 'Weekdays', 'Weekends'], '`ffxiv__freecompany`.`deleted` IS NULL', 'ffxiv__timeactive', 'INNER', 'activeid', 'IF(`ffxiv__freecompany`.`recruitment`=1, \'Recruiting\', \'Not recruiting\') AS `recruiting`');
         #Get statistics by activities
-        $data['freecompany']['activities'] = $dbCon->selectRow('SELECT  SUM(`Role-playing`)/COUNT(`freecompanyid`)*100 AS `Role-playing`, SUM(`Leveling`)/COUNT(`freecompanyid`)*100 AS `Leveling`, SUM(`Casual`)/COUNT(`freecompanyid`)*100 AS `Casual`, SUM(`Hardcore`)/COUNT(`freecompanyid`)*100 AS `Hardcore`, SUM(`Dungeons`)/COUNT(`freecompanyid`)*100 AS `Dungeons`, SUM(`Guildhests`)/COUNT(`freecompanyid`)*100 AS `Guildhests`, SUM(`Trials`)/COUNT(`freecompanyid`)*100 AS `Trials`, SUM(`Raids`)/COUNT(`freecompanyid`)*100 AS `Raids`, SUM(`PvP`)/COUNT(`freecompanyid`)*100 AS `PvP` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL');
+        $data['freecompany']['activities'] = Select::selectRow('SELECT  SUM(`Role-playing`)/COUNT(`freecompanyid`)*100 AS `Role-playing`, SUM(`Leveling`)/COUNT(`freecompanyid`)*100 AS `Leveling`, SUM(`Casual`)/COUNT(`freecompanyid`)*100 AS `Casual`, SUM(`Hardcore`)/COUNT(`freecompanyid`)*100 AS `Hardcore`, SUM(`Dungeons`)/COUNT(`freecompanyid`)*100 AS `Dungeons`, SUM(`Guildhests`)/COUNT(`freecompanyid`)*100 AS `Guildhests`, SUM(`Trials`)/COUNT(`freecompanyid`)*100 AS `Trials`, SUM(`Raids`)/COUNT(`freecompanyid`)*100 AS `Raids`, SUM(`PvP`)/COUNT(`freecompanyid`)*100 AS `PvP` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL');
         arsort($data['freecompany']['activities']);
         #Get statistics by job search
-        $data['freecompany']['jobDemand'] = $dbCon->selectRow('SELECT SUM(`Tank`)/COUNT(`freecompanyid`)*100 AS `Tank`, SUM(`Healer`)/COUNT(`freecompanyid`)*100 AS `Healer`, SUM(`DPS`)/COUNT(`freecompanyid`)*100 AS `DPS`, SUM(`Crafter`)/COUNT(`freecompanyid`)*100 AS `Crafter`, SUM(`Gatherer`)/COUNT(`freecompanyid`)*100 AS `Gatherer` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL');
+        $data['freecompany']['jobDemand'] = Select::selectRow('SELECT SUM(`Tank`)/COUNT(`freecompanyid`)*100 AS `Tank`, SUM(`Healer`)/COUNT(`freecompanyid`)*100 AS `Healer`, SUM(`DPS`)/COUNT(`freecompanyid`)*100 AS `DPS`, SUM(`Crafter`)/COUNT(`freecompanyid`)*100 AS `Crafter`, SUM(`Gatherer`)/COUNT(`freecompanyid`)*100 AS `Gatherer` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL');
         arsort($data['freecompany']['jobDemand']);
         #Get statistics for grand companies for characters
-        $data['gc_characters'] = $dbCon->selectAll(
+        $data['gc_characters'] = Select::selectAll(
             'SELECT COUNT(*) as `count`, `ffxiv__character`.`genderid`, `ffxiv__grandcompany`.`gcName`, `ffxiv__grandcompany_rank`.`gc_rank` FROM `ffxiv__character`
                                 LEFT JOIN `ffxiv__grandcompany_rank` ON `ffxiv__character`.`gcrankid`=`ffxiv__grandcompany_rank`.`gcrankid`
                                 LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__grandcompany_rank`.`gcId`=`ffxiv__grandcompany`.`gcId`
                                 WHERE `ffxiv__character`.`gcrankid` IS NOT NULL GROUP BY `ffxiv__character`.`genderid`, `ffxiv__grandcompany`.`gcName`, `ffxiv__grandcompany_rank`.`gc_rank` ORDER BY `count` DESC;
                     ');
         #Get statistics for grand companies for free companies
-        $data['gc_companies'] = $dbCon->countUnique('ffxiv__freecompany', 'grandcompanyid', '', 'ffxiv__grandcompany', 'INNER', 'gcId', '`ffxiv__grandcompany`.`gcName`');
+        $data['gc_companies'] = Select::countUnique('ffxiv__freecompany', 'grandcompanyid', '', 'ffxiv__grandcompany', 'INNER', 'gcId', '`ffxiv__grandcompany`.`gcName`');
         #City by free company
-        $data['cities']['free_company'] = $dbCon->countUnique('ffxiv__freecompany', 'estateid', '`ffxiv__freecompany`.`estateid` IS NOT NULL AND `ffxiv__freecompany`.`deleted` IS NULL', 'ffxiv__estate', 'INNER', 'estateid', '`ffxiv__estate`.`area`');
+        $data['cities']['free_company'] = Select::countUnique('ffxiv__freecompany', 'estateid', '`ffxiv__freecompany`.`estateid` IS NOT NULL AND `ffxiv__freecompany`.`deleted` IS NULL', 'ffxiv__estate', 'INNER', 'estateid', '`ffxiv__estate`.`area`');
         #Grand companies distribution (free companies)
-        $data['cities']['gc_fc'] = $dbCon->selectAll('SELECT `ffxiv__city`.`city`, `ffxiv__grandcompany`.`gcName` AS `value`, COUNT(`ffxiv__freecompany`.`freecompanyid`) AS `count` FROM `ffxiv__freecompany` LEFT JOIN `ffxiv__estate` ON `ffxiv__freecompany`.`estateid`=`ffxiv__estate`.`estateid` LEFT JOIN `ffxiv__city` ON `ffxiv__estate`.`cityid`=`ffxiv__city`.`cityid` LEFT JOIN `ffxiv__grandcompany_rank` ON `ffxiv__freecompany`.`grandcompanyid`=`ffxiv__grandcompany_rank`.`gcrankid` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__freecompany`.`grandcompanyid`=`ffxiv__grandcompany`.`gcId` WHERE `ffxiv__freecompany`.`deleted` IS NULL AND `ffxiv__freecompany`.`estateid` IS NOT NULL AND `ffxiv__grandcompany`.`gcName` IS NOT NULL GROUP BY `city`, `value` ORDER BY `count` DESC');
+        $data['cities']['gc_fc'] = Select::selectAll('SELECT `ffxiv__city`.`city`, `ffxiv__grandcompany`.`gcName` AS `value`, COUNT(`ffxiv__freecompany`.`freecompanyid`) AS `count` FROM `ffxiv__freecompany` LEFT JOIN `ffxiv__estate` ON `ffxiv__freecompany`.`estateid`=`ffxiv__estate`.`estateid` LEFT JOIN `ffxiv__city` ON `ffxiv__estate`.`cityid`=`ffxiv__city`.`cityid` LEFT JOIN `ffxiv__grandcompany_rank` ON `ffxiv__freecompany`.`grandcompanyid`=`ffxiv__grandcompany_rank`.`gcrankid` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__freecompany`.`grandcompanyid`=`ffxiv__grandcompany`.`gcId` WHERE `ffxiv__freecompany`.`deleted` IS NULL AND `ffxiv__freecompany`.`estateid` IS NOT NULL AND `ffxiv__grandcompany`.`gcName` IS NOT NULL GROUP BY `city`, `value` ORDER BY `count` DESC');
         #Free companies
-        $data['servers']['Free Companies'] = $dbCon->countUnique('ffxiv__freecompany', 'serverid', '`ffxiv__freecompany`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`server`');
+        $data['servers']['Free Companies'] = Select::countUnique('ffxiv__freecompany', 'serverid', '`ffxiv__freecompany`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`server`');
         #Linkshells
-        $data['servers']['Linkshells'] = $dbCon->countUnique('ffxiv__linkshell', 'serverid', '`ffxiv__linkshell`.`crossworld` = 0 AND `ffxiv__linkshell`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`server`');
+        $data['servers']['Linkshells'] = Select::countUnique('ffxiv__linkshell', 'serverid', '`ffxiv__linkshell`.`crossworld` = 0 AND `ffxiv__linkshell`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`server`');
         #Crossworld linkshells
-        $data['servers']['crossworldlinkshell'] = $dbCon->countUnique('ffxiv__linkshell', 'serverid', '`ffxiv__linkshell`.`crossworld` = 1 AND `ffxiv__linkshell`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`datacenter`');
+        $data['servers']['crossworldlinkshell'] = Select::countUnique('ffxiv__linkshell', 'serverid', '`ffxiv__linkshell`.`crossworld` = 1 AND `ffxiv__linkshell`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`datacenter`');
         #PvP teams
-        $data['servers']['pvpteam'] = $dbCon->countUnique('ffxiv__pvpteam', 'datacenterid', '`ffxiv__pvpteam`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`datacenter`');
-        #Get most popular crests for companies
-        $data['freecompany']['crests'] = AbstractTrackerEntity::cleanCrestResults($dbCon->selectAll('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__freecompany` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;'));
-        #Get most popular crests for PvP Teams
-        $data['pvpteam']['crests'] = AbstractTrackerEntity::cleanCrestResults($dbCon->selectAll('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__pvpteam` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;'));
+        $data['servers']['pvpteam'] = Select::countUnique('ffxiv__pvpteam', 'datacenterid', '`ffxiv__pvpteam`.`deleted` IS NULL', 'ffxiv__server', 'INNER', 'serverid', '`ffxiv__server`.`datacenter`');
+        #Get the most popular crests for companies
+        $data['freecompany']['crests'] = AbstractTrackerEntity::cleanCrestResults(Select::selectAll('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__freecompany` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;'));
+        #Get the most popular crests for PvP Teams
+        $data['pvpteam']['crests'] = AbstractTrackerEntity::cleanCrestResults(Select::selectAll('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__pvpteam` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;'));
         
     }
     
     /**
      * Get data for achievements' statistics
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getAchievements(array &$data, Controller $dbCon): void
+    private function getAchievements(array &$data): void
     {
         #Get achievements statistics
-        $data['achievements'] = $dbCon->selectAll(
+        $data['achievements'] = Select::selectAll(
             'SELECT \'achievement\' as `type`, `category`, `achievementid` AS `id`, `icon`, `name`, `earnedby` AS `count`
                     FROM `ffxiv__achievement`
                     WHERE `ffxiv__achievement`.`category` IS NOT NULL AND `earnedby`>0 ORDER BY `count`;'
         );
         #Split achievements by categories
         $data['achievements'] = Splitters::splitByKey($data['achievements'], 'category');
-        #Get only top 20 for each category
+        #Get only the top 20 for each category
         foreach ($data['achievements'] as $key => $category) {
             $data['achievements'][$key] = \array_slice($category, 0, 20);
         }
-        #Get most and least popular titles
-        $data['titles'] = Splitters::topAndBottom($dbCon->selectAll('SELECT COUNT(*) as `count`, `ffxiv__achievement`.`title`, `ffxiv__achievement`.`achievementid` FROM `ffxiv__character` LEFT JOIN `ffxiv__achievement` ON `ffxiv__achievement`.`achievementid`=`ffxiv__character`.`titleid` WHERE `ffxiv__character`.`titleid` IS NOT NULL GROUP BY `titleid` ORDER BY `count` DESC;'), 20);
+        #Get the most and least popular titles
+        $data['titles'] = Splitters::topAndBottom(Select::selectAll('SELECT COUNT(*) as `count`, `ffxiv__achievement`.`title`, `ffxiv__achievement`.`achievementid` FROM `ffxiv__character` LEFT JOIN `ffxiv__achievement` ON `ffxiv__achievement`.`achievementid`=`ffxiv__character`.`titleid` WHERE `ffxiv__character`.`titleid` IS NOT NULL GROUP BY `titleid` ORDER BY `count` DESC;'), 20);
         
     }
     
     /**
      * Get data statistics linked to dates
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getTimelines(array &$data, Controller $dbCon): void
+    private function getTimelines(array &$data): void
     {
         #Get namedays timeline. Using custom SQL, since need special order by `namedayid`, instead of by `count`
-        $data['namedays'] = $dbCon->selectAll('SELECT `ffxiv__nameday`.`nameday` AS `value`, COUNT(`ffxiv__character`.`namedayid`) AS `count` FROM `ffxiv__character` INNER JOIN `ffxiv__nameday` ON `ffxiv__character`.`namedayid`=`ffxiv__nameday`.`namedayid` GROUP BY `ffxiv__nameday`.`namedayid` ORDER BY `count` DESC;');
+        $data['namedays'] = Select::selectAll('SELECT `ffxiv__nameday`.`nameday` AS `value`, COUNT(`ffxiv__character`.`namedayid`) AS `count` FROM `ffxiv__character` INNER JOIN `ffxiv__nameday` ON `ffxiv__character`.`namedayid`=`ffxiv__nameday`.`namedayid` GROUP BY `ffxiv__nameday`.`namedayid` ORDER BY `count` DESC;');
         #Timeline of entities formation, updates, etc.
-        $data['timelines'] = $dbCon->selectAll(
+        $data['timelines'] = Select::selectAll(
             'SELECT `registered` AS `date`, COUNT(*) AS `count`, \'characters_registered\' as `type` FROM `ffxiv__character` GROUP BY `date`
                             UNION
                             SELECT `deleted` AS `date`, COUNT(*) AS `count`, \'characters_deleted\' as `type` FROM `ffxiv__character` WHERE `deleted` IS NOT NULL GROUP BY `date`
@@ -284,19 +279,18 @@ class Statistics
     /**
      * Get data for potential data bugs
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getBugs(array &$data, Controller $dbCon): void
+    private function getBugs(array &$data): void
     {
         #Characters with no clan/race
-        $data['bugs']['noClan'] = $dbCon->selectAll('SELECT `characterid` AS `id`, `name`, `avatar` AS `icon`, \'character\' AS `type` FROM `ffxiv__character` WHERE `clanid` IS NULL AND `deleted` IS NULL AND `privated` IS NULL ORDER BY `updated`, `name`;');
+        $data['bugs']['noClan'] = Select::selectAll('SELECT `characterid` AS `id`, `name`, `avatar` AS `icon`, \'character\' AS `type` FROM `ffxiv__character` WHERE `clanid` IS NULL AND `deleted` IS NULL AND `privated` IS NULL ORDER BY `updated`, `name`;');
         #Characters with no avatar
-        $data['bugs']['noAvatar'] = $dbCon->selectAll('SELECT `characterid` AS `id`, `name`, `avatar` AS `icon`, \'character\' AS `type` FROM `ffxiv__character` WHERE `avatar` LIKE \'defaultf%\' AND `deleted` IS NULL AND `privated` IS NULL ORDER BY `updated`, `name`;');
+        $data['bugs']['noAvatar'] = Select::selectAll('SELECT `characterid` AS `id`, `name`, `avatar` AS `icon`, \'character\' AS `type` FROM `ffxiv__character` WHERE `avatar` LIKE \'defaultf%\' AND `deleted` IS NULL AND `privated` IS NULL ORDER BY `updated`, `name`;');
         #Groups with no members
-        $data['bugs']['noMembers'] = AbstractTrackerEntity::cleanCrestResults($dbCon->selectAll(
+        $data['bugs']['noMembers'] = AbstractTrackerEntity::cleanCrestResults(Select::selectAll(
             'SELECT `freecompanyid` AS `id`, `name`, \'freecompany\' AS `type`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `grandcompanyid` FROM `ffxiv__freecompany` as `fc` WHERE `deleted` IS NULL AND `freecompanyid` NOT IN (SELECT `freecompanyid` FROM `ffxiv__freecompany_character` WHERE `freecompanyid`=`fc`.`freecompanyid` AND `current`=1)
                         UNION
                         SELECT `linkshellid` AS `id`, `name`, IF(`crossworld`=1, \'crossworldlinkshell\', \'linkshell\') AS `type`, null as `crest_part_1`, null as `crest_part_2`, null as `crest_part_3`, null as `grandcompanyid` FROM `ffxiv__linkshell` as `ls` WHERE `deleted` IS NULL AND `linkshellid` NOT IN (SELECT `linkshellid` FROM `ffxiv__linkshell_character` WHERE `linkshellid`=`ls`.`linkshellid` AND `current`=1)
@@ -305,7 +299,7 @@ class Statistics
                         ORDER BY `name`;'
         ));
         #Get entities with duplicate names
-        $duplicateNames = $dbCon->selectAll(
+        $duplicateNames = Select::selectAll(
             'SELECT \'character\' AS `type`, `chartable`.`characterid` AS `id`, `name`, `avatar` as `icon`, `userid`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `server`, `datacenter` FROM `ffxiv__character` as `chartable` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`chartable`.`characterid` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`serverid`=`chartable`.`serverid` WHERE `deleted` IS NULL AND `privated` IS NULL AND (SELECT COUNT(*) as `count` FROM `ffxiv__character` WHERE `ffxiv__character`.`name`=`chartable`.`name` AND `ffxiv__character`.`serverid`=`chartable`.`serverid` AND `deleted` is NULL)>1
                             UNION ALL
                             SELECT \'freecompany\' AS `type`, `freecompanyid` AS `id`, `name`, NULL as `icon`, NULL as `userid`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `server`, `datacenter`  FROM `ffxiv__freecompany` as `fctable` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`serverid`=`fctable`.`serverid` WHERE `deleted` is NULL AND (SELECT COUNT(*) as `count` FROM `ffxiv__freecompany` WHERE `ffxiv__freecompany`.`name`= BINARY `fctable`.`name` AND `ffxiv__freecompany`.`serverid`=`fctable`.`serverid` AND `deleted` is NULL)>1
@@ -345,15 +339,14 @@ class Statistics
     /**
      * Get data for uncategorized statistics
      *
-     * @param array                        $data  Array of gathered data
-     * @param \Simbiat\Database\Controller $dbCon Database connection object
+     * @param array $data Array of gathered data
      *
      * @return void
      */
-    private function getOthers(array &$data, Controller $dbCon): void
+    private function getOthers(array &$data): void
     {
         #Communities
-        $data['other']['communities'] = $dbCon->selectAll('
+        $data['other']['communities'] = Select::selectAll(/** @lang MySQL */ '
                             (SELECT \'Free Company\' AS `type`, \'No community\' AS `value`, COUNT(*) as `count` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL AND `communityid` IS NULL)
                             UNION ALL
                             (SELECT \'Free Company\' AS `type`, \'Community\' AS `value`, COUNT(*) as `count` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL AND `communityid` IS NOT NULL)
@@ -372,7 +365,7 @@ class Statistics
                             ORDER BY `type`, `value`
                     ');
         #Deleted entities statistics
-        $data['other']['entities'] = $dbCon->selectAll('
+        $data['other']['entities'] = Select::selectAll(/** @lang MySQL */ '
                             (SELECT \'Active Character\' AS `value`, COUNT(*) AS `count` FROM `ffxiv__character` WHERE `deleted` IS NULL)
                             UNION ALL
                             (SELECT \'Deleted Character\' AS `value`, COUNT(*) AS `count` FROM `ffxiv__character` WHERE `deleted` IS NOT NULL)
@@ -394,8 +387,8 @@ class Statistics
                             (SELECT \'Deleted Crossworld Linkshell\' AS `value`, COUNT(*) AS `count` FROM `ffxiv__linkshell` WHERE `deleted` IS NOT NULL AND `crossworld`=1)
                             ORDER BY `count` DESC;
                     ');
-        #Number of updated entities in last 30 days
-        $data['updates_stats'] = $dbCon->selectAll(
+        #Number of updated entities in the last 30 days
+        $data['updates_stats'] = Select::selectAll(
         /** @lang MariaDB */ '(SELECT DATE(`updated`) AS `date`, COUNT(*) AS `count`, \'characters\' as `type` FROM `ffxiv__character` GROUP BY `date` ORDER BY `date` DESC LIMIT 30)
                             UNION
                             (SELECT DATE(`updated`) AS `date`, COUNT(*) AS `count`, \'free_companies\' as `type` FROM `ffxiv__freecompany` GROUP BY `date` ORDER BY `date` DESC LIMIT 30)
@@ -422,7 +415,7 @@ class Statistics
      */
     private function scheduleBugs(array $data): void
     {
-        #These may be because of temporary issues on parser or Lodestone side, so schedule them for update
+        #These may be because of temporary issues on the parser or Lodestone side, so schedule them for update
         $cron = new TaskInstance();
         foreach ($data['bugs']['noClan'] as $character) {
             $cron->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$character['id'], 'character'], 'message' => 'Updating character with ID '.$character['id']])->add();

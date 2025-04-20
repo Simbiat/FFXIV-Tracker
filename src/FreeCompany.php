@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 use Simbiat\Website\Sanitization;
@@ -39,22 +40,22 @@ class FreeCompany extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Config::$dbController->selectRow('SELECT * FROM `ffxiv__freecompany` LEFT JOIN `ffxiv__server` ON `ffxiv__freecompany`.`serverid`=`ffxiv__server`.`serverid` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__freecompany`.`grandcompanyid`=`ffxiv__grandcompany`.`gcId` LEFT JOIN `ffxiv__timeactive` ON `ffxiv__freecompany`.`activeid`=`ffxiv__timeactive`.`activeid` LEFT JOIN `ffxiv__estate` ON `ffxiv__freecompany`.`estateid`=`ffxiv__estate`.`estateid` LEFT JOIN `ffxiv__city` ON `ffxiv__estate`.`cityid`=`ffxiv__city`.`cityid` WHERE `freecompanyid`=:id', [':id' => $this->id]);
-        #Return empty, if nothing was found
+        $data = Select::selectRow('SELECT * FROM `ffxiv__freecompany` LEFT JOIN `ffxiv__server` ON `ffxiv__freecompany`.`serverid`=`ffxiv__server`.`serverid` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__freecompany`.`grandcompanyid`=`ffxiv__grandcompany`.`gcId` LEFT JOIN `ffxiv__timeactive` ON `ffxiv__freecompany`.`activeid`=`ffxiv__timeactive`.`activeid` LEFT JOIN `ffxiv__estate` ON `ffxiv__freecompany`.`estateid`=`ffxiv__estate`.`estateid` LEFT JOIN `ffxiv__city` ON `ffxiv__estate`.`cityid`=`ffxiv__city`.`cityid` WHERE `freecompanyid`=:id', [':id' => $this->id]);
+        #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get old names
-        $data['oldnames'] = Config::$dbController->selectColumn('SELECT `name` FROM `ffxiv__freecompany_names` WHERE `freecompanyid`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']]);
+        $data['oldnames'] = Select::selectColumn('SELECT `name` FROM `ffxiv__freecompany_names` WHERE `freecompanyid`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']]);
         #Get members
-        $data['members'] = Config::$dbController->selectAll('SELECT \'character\' AS `type`, `ffxiv__freecompany_character`.`characterid` AS `id`, `ffxiv__freecompany_rank`.`rankid`, `rankname` AS `rank`, `name`, `ffxiv__character`.`avatar` AS `icon`, `userid` FROM `ffxiv__freecompany_character`LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__freecompany_character`.`characterid` LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`rankid`=`ffxiv__freecompany_character`.`rankid` AND `ffxiv__freecompany_rank`.`freecompanyid`=`ffxiv__freecompany_character`.`freecompanyid` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`characterid`=`ffxiv__freecompany_character`.`characterid` LEFT JOIN (SELECT `rankid`, COUNT(*) AS `total` FROM `ffxiv__freecompany_character` WHERE `ffxiv__freecompany_character`.`freecompanyid`=:id GROUP BY `rankid`) `ranklist` ON `ranklist`.`rankid` = `ffxiv__freecompany_character`.`rankid` WHERE `ffxiv__freecompany_character`.`freecompanyid`=:id AND `current`=1 ORDER BY `ranklist`.`total`, `ranklist`.`rankid` , `ffxiv__character`.`name`;', [':id' => $this->id]);
+        $data['members'] = Select::selectAll('SELECT \'character\' AS `type`, `ffxiv__freecompany_character`.`characterid` AS `id`, `ffxiv__freecompany_rank`.`rankid`, `rankname` AS `rank`, `name`, `ffxiv__character`.`avatar` AS `icon`, `userid` FROM `ffxiv__freecompany_character`LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__freecompany_character`.`characterid` LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`rankid`=`ffxiv__freecompany_character`.`rankid` AND `ffxiv__freecompany_rank`.`freecompanyid`=`ffxiv__freecompany_character`.`freecompanyid` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`characterid`=`ffxiv__freecompany_character`.`characterid` LEFT JOIN (SELECT `rankid`, COUNT(*) AS `total` FROM `ffxiv__freecompany_character` WHERE `ffxiv__freecompany_character`.`freecompanyid`=:id GROUP BY `rankid`) `ranklist` ON `ranklist`.`rankid` = `ffxiv__freecompany_character`.`rankid` WHERE `ffxiv__freecompany_character`.`freecompanyid`=:id AND `current`=1 ORDER BY `ranklist`.`total`, `ranklist`.`rankid` , `ffxiv__character`.`name`;', [':id' => $this->id]);
         #History of ranks. Ensuring that we get only the freshest 100 entries sorted from latest to newest
-        $data['ranks_history'] = Config::$dbController->selectAll('SELECT `date`, `weekly`, `monthly`, `members` FROM `ffxiv__freecompany_ranking` WHERE `freecompanyid`=:id ORDER BY `date` DESC LIMIT 100;', [':id' => $this->id]);
+        $data['ranks_history'] = Select::selectAll('SELECT `date`, `weekly`, `monthly`, `members` FROM `ffxiv__freecompany_ranking` WHERE `freecompanyid`=:id ORDER BY `date` DESC LIMIT 100;', [':id' => $this->id]);
         #Clean up the data from unnecessary (technical) clutter
         unset($data['gcId'], $data['estateid'], $data['gc_icon'], $data['activeid'], $data['cityid'], $data['left'], $data['top'], $data['cityicon']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
         if (empty($_SESSION['UA']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
-            (new TaskInstance())->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
+            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
     }
@@ -251,7 +252,7 @@ class FreeCompany extends AbstractTrackerEntity
                     ],
                 ],
             ];
-            #Register Free Company name if it's not registered already
+            #Register the Free Company name if it's not registered already
             $queries[] = [
                 'INSERT IGNORE INTO `ffxiv__freecompany_names`(`freecompanyid`, `name`) VALUES (:freecompanyid, :name);',
                 [
@@ -273,11 +274,11 @@ class FreeCompany extends AbstractTrackerEntity
                     ],
                 ];
             }
-            #Get members as registered on tracker
-            $trackMembers = Config::$dbController->selectColumn('SELECT `characterid` FROM `ffxiv__freecompany_character` WHERE `freecompanyid`=:fcId AND `current`=1;', [':fcId' => $this->id]);
-            #Process members, that left the company
+            #Get members as registered on the tracker
+            $trackMembers = Select::selectColumn('SELECT `characterid` FROM `ffxiv__freecompany_character` WHERE `freecompanyid`=:fcId AND `current`=1;', [':fcId' => $this->id]);
+            #Process members that left the company
             foreach ($trackMembers as $member) {
-                #Check if member from tracker is present in Lodestone list
+                #Check if member from tracker is present in a Lodestone list
                 if (!isset($this->lodestone['members'][$member])) {
                     #Update status for the character
                     $queries[] = [
@@ -301,10 +302,10 @@ class FreeCompany extends AbstractTrackerEntity
                             ':rankName' => (empty($details['rank']) ? '' : $details['rank']),
                         ],
                     ];
-                    #Check if member is registered on tracker, while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Config::$dbController->check('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member]);
+                    #Check if a member is registered on the tracker while saving the status for future use
+                    $this->lodestone['members'][$member]['registered'] = Select::check('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member]);
                     if (!$this->lodestone['members'][$member]['registered']) {
-                        #Create basic entry of the character
+                        #Create the basic entry of the character
                         $queries[] = [
                             'INSERT INTO `ffxiv__character`(
                                 `characterid`, `serverid`, `name`, `registered`, `updated`, `avatar`, `gcrankid`
@@ -321,7 +322,7 @@ class FreeCompany extends AbstractTrackerEntity
                             ]
                         ];
                     }
-                    #Link the character to company
+                    #Link the character to the company
                     $queries[] = [
                         'INSERT INTO `ffxiv__freecompany_character` (`freecompanyid`, `characterid`, `rankid`, `current`) VALUES (:fcId, :characterid, :rankid, 1) ON DUPLICATE KEY UPDATE `current`=1, `rankid`=:rankid;',
                         [
@@ -333,8 +334,8 @@ class FreeCompany extends AbstractTrackerEntity
                 }
             }
             #Running the queries we've accumulated
-            Config::$dbController->query($queries);
-            #Schedule proper update of any newly added characters
+            Config::$dbController::query($queries);
+            #Schedule the proper update of any newly added characters
             if (!empty($this->lodestone['members'])) {
                 $this->charMassCron($this->lodestone['members']);
             }
@@ -352,7 +353,7 @@ class FreeCompany extends AbstractTrackerEntity
     {
         try {
             $queries = [];
-            #Remove characters from group
+            #Remove characters from thegroup
             $queries[] = [
                 'UPDATE `ffxiv__freecompany_character` SET `current`=0 WHERE `freecompanyid`=:groupId;',
                 [':groupId' => $this->id,]
@@ -362,7 +363,7 @@ class FreeCompany extends AbstractTrackerEntity
                 'UPDATE `ffxiv__freecompany` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `freecompanyid` = :id',
                 [':id' => $this->id],
             ];
-            return Config::$dbController->query($queries);
+            return Config::$dbController::query($queries);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return false;

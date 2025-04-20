@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 
@@ -29,20 +30,20 @@ class PvPTeam extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Config::$dbController->selectRow('SELECT * FROM `ffxiv__pvpteam` LEFT JOIN `ffxiv__server` ON `ffxiv__pvpteam`.`datacenterid`=`ffxiv__server`.`serverid` WHERE `pvpteamid`=:id', [':id' => $this->id]);
-        #Return empty, if nothing was found
+        $data = Select::selectRow('SELECT * FROM `ffxiv__pvpteam` LEFT JOIN `ffxiv__server` ON `ffxiv__pvpteam`.`datacenterid`=`ffxiv__server`.`serverid` WHERE `pvpteamid`=:id', [':id' => $this->id]);
+        #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get old names
-        $data['oldnames'] = Config::$dbController->selectColumn('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvpteamid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']]);
+        $data['oldnames'] = Select::selectColumn('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvpteamid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']]);
         #Get members
-        $data['members'] = Config::$dbController->selectAll('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`characterid` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvprankid`, `userid` FROM `ffxiv__pvpteam_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__pvpteam_character`.`characterid` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvprankid`=`ffxiv__pvpteam_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__pvpteam_character`.`pvpteamid`=:id AND `current`=1 ORDER BY `ffxiv__pvpteam_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id]);
+        $data['members'] = Select::selectAll('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`characterid` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvprankid`, `userid` FROM `ffxiv__pvpteam_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__pvpteam_character`.`characterid` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvprankid`=`ffxiv__pvpteam_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__pvpteam_character`.`pvpteamid`=:id AND `current`=1 ORDER BY `ffxiv__pvpteam_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id]);
         #Clean up the data from unnecessary (technical) clutter
         unset($data['datacenterid'], $data['serverid'], $data['server']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
         if (empty($_SESSION['UA']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
-            (new TaskInstance())->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->id, 'priority' => 1])->add();
+            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
     }
@@ -158,11 +159,11 @@ class PvPTeam extends AbstractTrackerEntity
                     ':name' => $this->lodestone['name'],
                 ],
             ];
-            #Get members as registered on tracker
-            $trackMembers = Config::$dbController->selectColumn('SELECT `characterid` FROM `ffxiv__pvpteam_character` WHERE `pvpteamid`=:pvpteamid AND `current`=1;', [':pvpteamid' => $this->id]);
-            #Process members, that left the team
+            #Get members as registered on the tracker
+            $trackMembers = Select::selectColumn('SELECT `characterid` FROM `ffxiv__pvpteam_character` WHERE `pvpteamid`=:pvpteamid AND `current`=1;', [':pvpteamid' => $this->id]);
+            #Process members that left the team
             foreach ($trackMembers as $member) {
-                #Check if member from tracker is present in Lodestone list
+                #Check if member from tracker is present in a Lodestone list
                 if (!isset($this->lodestone['members'][$member])) {
                     #Update status for the character
                     $queries[] = [
@@ -177,10 +178,10 @@ class PvPTeam extends AbstractTrackerEntity
             #Process Lodestone members
             if (!empty($this->lodestone['members'])) {
                 foreach ($this->lodestone['members'] as $member => $details) {
-                    #Check if member is registered on tracker, while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Config::$dbController->check('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member]);
+                    #Check if a member is registered on the tracker while saving the status for future use
+                    $this->lodestone['members'][$member]['registered'] = Select::check('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member]);
                     if (!$this->lodestone['members'][$member]['registered']) {
-                        #Create basic entry of the character
+                        #Create a basic entry of the character
                         $queries[] = [
                             'INSERT IGNORE INTO `ffxiv__character`(
                                 `characterid`, `serverid`, `name`, `registered`, `updated`, `avatar`, `gcrankid`, `pvp_matches`
@@ -198,7 +199,7 @@ class PvPTeam extends AbstractTrackerEntity
                             ]
                         ];
                     }
-                    #Link the character to team
+                    #Link the character to the team
                     $queries[] = [
                         'INSERT INTO `ffxiv__pvpteam_character` (`pvpteamid`, `characterid`, `rankid`, `current`) VALUES (:pvpteamId, :characterid, (SELECT `pvprankid` FROM `ffxiv__pvpteam_rank` WHERE `rank`=:rank LIMIT 1), 1) ON DUPLICATE KEY UPDATE `current`=1, `rankid`=(SELECT `pvprankid` FROM `ffxiv__pvpteam_rank` WHERE `rank`=:rank AND `rank` IS NOT NULL LIMIT 1);',
                         [
@@ -210,8 +211,8 @@ class PvPTeam extends AbstractTrackerEntity
                 }
             }
             #Running the queries we've accumulated
-            Config::$dbController->query($queries);
-            #Schedule proper update of any newly added characters
+            Config::$dbController::query($queries);
+            #Schedule a proper update of any newly added characters
             if (!empty($this->lodestone['members'])) {
                 $this->charMassCron($this->lodestone['members']);
             }
@@ -230,7 +231,7 @@ class PvPTeam extends AbstractTrackerEntity
     {
         try {
             $queries = [];
-            #Remove characters from group
+            #Remove characters from the group
             $queries[] = [
                 'UPDATE `ffxiv__pvpteam_character` SET `current`=0 WHERE `pvpteamid`=:groupId;',
                 [':groupId' => $this->id,]
@@ -239,7 +240,7 @@ class PvPTeam extends AbstractTrackerEntity
             $queries[] = [
                 'UPDATE `ffxiv__pvpteam` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `pvpteamid` = :id', [':id' => $this->id],
             ];
-            return Config::$dbController->query($queries);
+            return Config::$dbController::query($queries);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return false;

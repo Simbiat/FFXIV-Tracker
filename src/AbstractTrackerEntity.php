@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 use Simbiat\Website\Images;
@@ -16,7 +17,7 @@ use function sprintf;
  */
 abstract class AbstractTrackerEntity
 {
-    #Flag to indicate whether there was an attempt to get data within this object. Meant to help reduce reuse of same object for different sets of data
+    #Flag to indicate whether there was an attempt to get data within this object. Meant to help reduce reuse of the same object for different sets of data
     protected bool $attempted = false;
     #If ID was retrieved, this needs to not be null
     public ?string $id = null;
@@ -56,7 +57,7 @@ abstract class AbstractTrackerEntity
         #Convert to string for consistency
         $id = (string)$id;
         if (preg_match($this->idFormat, $id) !== 1) {
-            throw new \UnexpectedValueException('ID `'.$id.'` for entity `'.get_class($this).'` has incorrect format.');
+            throw new \UnexpectedValueException('ID `'.$id.'` for entity `'.\get_class($this).'` has incorrect format.');
         }
         $this->id = $id;
         return $this;
@@ -68,7 +69,7 @@ abstract class AbstractTrackerEntity
      */
     final public function get(): self
     {
-        #Set flag, that we have tried to get data
+        #Set the flag that we have tried to get data
         $this->attempted = true;
         try {
             #Set ID
@@ -86,7 +87,7 @@ abstract class AbstractTrackerEntity
         } catch (\Throwable $e) {
             $error = $e->getMessage().$e->getTraceAsString();
             Errors::error_log($e);
-            #Rethrow exception, if using debug mode
+            #Rethrow exception if using debug mode
             if ($this->debug) {
                 die('<pre>'.$error.'</pre>');
             }
@@ -101,7 +102,7 @@ abstract class AbstractTrackerEntity
     final public function getArray(): array
     {
         #If data was not retrieved yet - attempt to
-        if ($this->attempted === false) {
+        if (!$this->attempted) {
             try {
                 $this->get();
             } catch (\Throwable) {
@@ -160,7 +161,7 @@ abstract class AbstractTrackerEntity
         }
         #Check if we have not updated before
         try {
-            $updated = Config::$dbController->selectValue('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
+            $updated = Config::$dbController::selectValue('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return $e->getMessage()."\n".$e->getTraceAsString();
@@ -183,7 +184,7 @@ abstract class AbstractTrackerEntity
             }
             $this->lodestone = $tempLodestone;
         }
-        #If we got 404, return true. If entity is to be removed, it's done during getFromLodestone()
+        #If we got 404, return true. If an entity is to be removed, it's done during getFromLodestone()
         if (isset($this->lodestone['404']) && $this->lodestone['404'] === true) {
             return true;
         }
@@ -213,13 +214,13 @@ abstract class AbstractTrackerEntity
         try {
             if ($this::entityType !== 'achievement') {
                 if ($this::entityType === 'character') {
-                    $check = Config::$dbController->check('SELECT `characterid` FROM `uc__user_to_ff_character` WHERE `characterid` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']]);
+                    $check = Select::check('SELECT `characterid` FROM `uc__user_to_ff_character` WHERE `characterid` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']]);
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Character not linked to user'];
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
-                    $check = Config::$dbController->check('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`characterid`=`uc__user_to_ff_character`.`characterid` WHERE `'.$this::entityType.'id` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']]);
+                    $check = Select::check('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`characterid`=`uc__user_to_ff_character`.`characterid` WHERE `'.$this::entityType.'id` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']]);
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Group not linked to user'];
                     }
@@ -233,7 +234,7 @@ abstract class AbstractTrackerEntity
     }
     
     /**
-     * Register the entity, if it has not been registered already
+     * Register the entity if it has not been registered already
      * @return bool|int
      */
     public function register(): bool|int
@@ -243,12 +244,12 @@ abstract class AbstractTrackerEntity
             return 400;
         }
         try {
-            $check = Config::$dbController->check('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
+            $check = Select::check('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return 503;
         }
-        if ($check === true) {
+        if ($check) {
             #Entity already registered
             return 409;
         }
@@ -292,7 +293,7 @@ abstract class AbstractTrackerEntity
             $cron = new TaskInstance();
             foreach ($members as $member => $details) {
                 if (!$details['registered']) {
-                    #Priority is higher, since they are missing a lot of data.
+                    #Priority is higher since they are missing a lot of data.
                     try {
                         $cron->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$member, 'character'], 'message' => 'Updating character with ID '.$member, 'priority' => 2])->add();
                     } catch (\Throwable) {
@@ -329,14 +330,14 @@ abstract class AbstractTrackerEntity
             if (!empty($image)) {
                 #Check if we have already downloaded the component image and use that one to speed up the process
                 if ($key === 0) {
-                    #If it's background, we need to check if subdirectory exists and create it, and create it, if it does not
+                    #If it's background, we need to check if a subdirectory exists and create it, and create it if it does not
                     $subDir = mb_strtolower(mb_substr(basename($image), 0, 3, 'UTF-8'), 'UTF-8');
                     $concurrentDirectory = Config::$crestsComponents.'backgrounds/'.$subDir;
                     if (!is_dir($concurrentDirectory) && !mkdir($concurrentDirectory) && !is_dir($concurrentDirectory)) {
                         throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
                     }
                 } elseif ($key === 2) {
-                    #If it's emblem, we need to check if subdirectory exists and create it, and create it, if it does not
+                    #If it's an emblem, we need to check if a subdirectory exists and create it, and create it if it does not
                     $subDir = mb_strtolower(mb_substr(basename($image), 0, 3, 'UTF-8'), 'UTF-8');
                     $concurrentDirectory = Config::$crestsComponents.'emblems/'.$subDir;
                     if (!is_dir($concurrentDirectory) && !mkdir($concurrentDirectory) && !is_dir($concurrentDirectory)) {
@@ -347,7 +348,7 @@ abstract class AbstractTrackerEntity
                 }
                 $cachedImage = self::crestToLocal($image);
                 if (!empty($cachedImage)) {
-                    #Try downloading the component, if it's not present locally
+                    #Try downloading the component if it's not present locally
                     if (!is_file($cachedImage)) {
                         Images::download($image, $cachedImage, false);
                     }
@@ -385,9 +386,9 @@ abstract class AbstractTrackerEntity
         #Get hash of the merged images based on their names
         $crestHash = hash('sha3-512', $mergedFileNames);
         if (!empty($crestHash)) {
-            #Get full path
+            #Get a full path
             $fullPath = mb_substr($crestHash, 0, 2, 'UTF-8').'/'.mb_substr($crestHash, 2, 2, 'UTF-8').'/'.$crestHash.'.webp';
-            #Generate image file, if missing
+            #Generate an image file, if missing
             if (!is_file(Config::$mergedCrestsCache.$fullPath)) {
                 self::CrestMerge($images, Config::$mergedCrestsCache.$fullPath);
             }
@@ -397,7 +398,7 @@ abstract class AbstractTrackerEntity
     }
     
     /**
-     * Function converts image URL to local path
+     * Function converts image URL to a local path
      * @param string $image
      *
      * @return string|null
@@ -449,10 +450,10 @@ abstract class AbstractTrackerEntity
     }
     
     /**
-     * Function to merge 1 to 3 images making up a crest on Lodestone into 1 stored on tracker side
+     * Function to merge 1 to 3 images making up a crest on Lodestone into 1 stored on the tracker side
      *
      * @param array  $images    Array of crest components
-     * @param string $finalPath Where to save final file
+     * @param string $finalPath Where to save the final file
      * @param bool   $debug     Debug mode to log errors
      *
      * @return bool
@@ -464,7 +465,7 @@ abstract class AbstractTrackerEntity
             if (empty($images)) {
                 return false;
             }
-            #Check if path exists and create it recursively, if not
+            #Check if the path exists and create it recursively, if not
             /* @noinspection PhpUsageOfSilenceOperatorInspection */
             if (!is_dir(dirname($finalPath)) && !@mkdir(dirname($finalPath), recursive: true) && !is_dir(dirname($finalPath))) {
                 throw new \RuntimeException(sprintf('Directory "%s" was not created', $finalPath));

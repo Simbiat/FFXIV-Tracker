@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 use Simbiat\Website\Images;
@@ -32,16 +33,16 @@ class Achievement extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Config::$dbController->selectRow('SELECT * FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`achievementid` = :id', [':id' => $this->id]);
-        #Return empty, if nothing was found
+        $data = Select::selectRow('SELECT * FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`achievementid` = :id', [':id' => $this->id]);
+        #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get last characters with this achievement
-        $data['characters'] = Config::$dbController->selectAll('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`characterid` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`characterid` = `ffxiv__character_achievement`.`characterid` WHERE `ffxiv__character_achievement`.`achievementid` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id]);
+        $data['characters'] = Select::selectAll('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`characterid` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`characterid` = `ffxiv__character_achievement`.`characterid` WHERE `ffxiv__character_achievement`.`achievementid` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id]);
         #Register for an update if old enough or category or howto or dbid are empty. Also check that this is not a bot.
         if (empty($_SESSION['UA']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['howto']) || empty($data['dbid']) || (time() - strtotime($data['updated'])) >= 31536000)) {
-            (new TaskInstance())->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
+            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
         }
         return $data;
     }
@@ -103,15 +104,14 @@ class Achievement extends AbstractTrackerEntity
     }
     
     /**
-     * Helper function to get dbid from Lodestone based on achievement name
+     * Helper function to get dbid from Lodestone based on the achievement name
      * @param string $searchFor
      *
      * @return string|null
      */
     private function getDBID(string $searchFor): string|null
     {
-        $Lodestone = new Lodestone();
-        $dbSearchResult = $Lodestone->searchDatabase('achievement', 0, 0, $searchFor)->getResult();
+        $dbSearchResult = new Lodestone()->searchDatabase('achievement', 0, 0, $searchFor)->getResult();
         #Remove counts elements from achievement database
         unset($dbSearchResult['database']['achievement']['pageCurrent'], $dbSearchResult['database']['achievement']['pageTotal'], $dbSearchResult['database']['achievement']['total']);
         #Flip the array of achievements (if any) to ease searching for the right element
@@ -209,7 +209,7 @@ class Achievement extends AbstractTrackerEntity
             $bindings[':dbid'] = $this->lodestone['dbid'];
         }
         try {
-            return Config::$dbController->query('INSERT INTO `ffxiv__achievement` SET `achievementid`=:achievementid, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howto`=:howto, `title`=:title, `item`=:item, `itemicon`=:itemicon, `itemid`=:itemid, `dbid`=:dbid ON DUPLICATE KEY UPDATE `achievementid`=:achievementid, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howto`=:howto, `title`=:title, `item`=:item, `itemicon`=:itemicon, `itemid`=:itemid, `dbid`=:dbid, `updated`=CURRENT_TIMESTAMP()', $bindings);
+            return Config::$dbController::query('INSERT INTO `ffxiv__achievement` SET `achievementid`=:achievementid, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howto`=:howto, `title`=:title, `item`=:item, `itemicon`=:itemicon, `itemid`=:itemid, `dbid`=:dbid ON DUPLICATE KEY UPDATE `achievementid`=:achievementid, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howto`=:howto, `title`=:title, `item`=:item, `itemicon`=:itemicon, `itemid`=:itemid, `dbid`=:dbid, `updated`=CURRENT_TIMESTAMP()', $bindings);
         } catch (\Exception $e) {
             Errors::error_log($e, 'achievementid: '.$this->id);
             return false;
