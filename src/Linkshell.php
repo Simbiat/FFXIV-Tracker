@@ -4,8 +4,8 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Query;
 use Simbiat\Database\Select;
-use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 
 /**
@@ -218,7 +218,7 @@ class Linkshell extends AbstractTrackerEntity
                 }
             }
             #Running the queries we've accumulated
-            Config::$dbController::query($queries);
+            Query::query($queries);
             #Schedule a proper update of any newly added characters
             if (!empty($this->lodestone['members'])) {
                 $this->charMassCron($this->lodestone['members']);
@@ -248,7 +248,7 @@ class Linkshell extends AbstractTrackerEntity
                 'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `linkshellid` = :id',
                 [':id' => $this->id],
             ];
-            return Config::$dbController::query($queries);
+            return Query::query($queries);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return false;

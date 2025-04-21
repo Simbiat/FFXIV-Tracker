@@ -41,8 +41,6 @@ class Statistics
             throw new \RuntimeException(\sprintf('Directory "%s" was not created', Config::$statistics));
         }
         $cachePath = Config::$statistics.$type.'.json';
-        #Get a connection object for slight optimization
-        $dbCon = Config::$dbController;
         $data['time'] = time();
         switch ($type) {
             case 'raw':
@@ -67,7 +65,6 @@ class Statistics
                 $this->getOthers($data);
                 break;
         }
-        unset($dbCon);
         #Attempt to write to cache
         file_put_contents($cachePath, json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE | JSON_OBJECT_AS_ARRAY | JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION | JSON_PRETTY_PRINT));
         if ($type === 'bugs') {

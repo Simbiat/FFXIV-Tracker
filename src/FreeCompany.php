@@ -4,8 +4,8 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Query;
 use Simbiat\Database\Select;
-use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 use Simbiat\Website\Sanitization;
 use function count;
@@ -334,7 +334,7 @@ class FreeCompany extends AbstractTrackerEntity
                 }
             }
             #Running the queries we've accumulated
-            Config::$dbController::query($queries);
+            Query::query($queries);
             #Schedule the proper update of any newly added characters
             if (!empty($this->lodestone['members'])) {
                 $this->charMassCron($this->lodestone['members']);
@@ -363,7 +363,7 @@ class FreeCompany extends AbstractTrackerEntity
                 'UPDATE `ffxiv__freecompany` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `freecompanyid` = :id',
                 [':id' => $this->id],
             ];
-            return Config::$dbController::query($queries);
+            return Query::query($queries);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return false;

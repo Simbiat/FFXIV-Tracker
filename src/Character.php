@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Query;
 use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
@@ -370,7 +371,7 @@ class Character extends AbstractTrackerEntity
                     }
                 }
             }
-            Select::query($queries);
+            Query::query($queries);
             #Clean achievements, unless this is a new character
             if (!empty($updated)) {
                 $this->cleanAchievements();
@@ -416,9 +417,9 @@ class Character extends AbstractTrackerEntity
                     ],
                 ];
                 $this->insertServerAndName($queries);
-                return Select::query($queries);
+                return Query::query($queries);
             }
-            $result = Select::query(
+            $result = Query::query(
                 'UPDATE `ffxiv__character` SET `privated` = COALESCE(`privated`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `characterid` = :characterid',
                 [':characterid' => $this->id],
             );
@@ -493,7 +494,7 @@ class Character extends AbstractTrackerEntity
                 'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `characterid` = :id',
                 [':id' => $this->id],
             ];
-            $result = Select::query($queries);
+            $result = Query::query($queries);
             #Also try cleaning achievements, but it does not matter much if it fails
             $this->cleanAchievements();
             return $result;
@@ -538,7 +539,7 @@ class Character extends AbstractTrackerEntity
                 return ['http_error' => 403, 'reason' => 'Wrong token or user provided'];
             }
             #Link character to user
-            $result = Select::query([
+            $result = Query::query([
                 'INSERT IGNORE INTO `uc__user_to_ff_character` (`userid`, `characterid`) VALUES (:userid, :characterid);', [':userid' => $_SESSION['userid'], ':characterid' => $this->id],
                 'INSERT IGNORE INTO `uc__user_to_group` (`userid`, `groupid`) VALUES (:userid, :groupid);', [':userid' => $_SESSION['userid'], ':groupid' => [Config::groupsIDs['Linked to FF'], 'int']],
             ]);
@@ -640,7 +641,7 @@ class Character extends AbstractTrackerEntity
                 [':characterid' => $this->id],
             );
             if (!empty($toRemove)) {
-                Select::query('DELETE FROM `ffxiv__character_achievement` WHERE `characterid`=:characterid AND `achievementid` IN (:achievementid);',
+                Query::query('DELETE FROM `ffxiv__character_achievement` WHERE `characterid`=:characterid AND `achievementid` IN (:achievementid);',
                     [':characterid' => $this->id, ':achievementid' => [$toRemove, 'in', 'int']],
                 );
             }

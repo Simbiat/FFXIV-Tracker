@@ -161,7 +161,7 @@ abstract class AbstractTrackerEntity
         }
         #Check if we have not updated before
         try {
-            $updated = Config::$dbController::selectValue('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
+            $updated = Select::selectValue('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return $e->getMessage()."\n".$e->getTraceAsString();
