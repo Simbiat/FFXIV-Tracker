@@ -266,7 +266,7 @@ class Statistics
         );
         $data['timelines'] = Splitters::splitByKey($data['timelines'], 'date');
         foreach ($data['timelines'] as $date => $datapoint) {
-            $data['timelines'][$date] = Converters::MultiToSingle(Editors::DigitToKey($datapoint, 'type', true), 'count');
+            $data['timelines'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }
         krsort($data['timelines']);
     }
@@ -394,7 +394,7 @@ class Statistics
         );
         $data['updates_stats'] = Splitters::splitByKey($data['updates_stats'], 'date');
         foreach ($data['updates_stats'] as $date => $datapoint) {
-            $data['updates_stats'][$date] = Converters::MultiToSingle(Editors::DigitToKey($datapoint, 'type', true), 'count');
+            $data['updates_stats'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }
         krsort($data['updates_stats']);
         $data['updates_stats'] = \array_slice($data['updates_stats'], 0, 30);
