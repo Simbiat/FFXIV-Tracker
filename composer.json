@@ -22,7 +22,7 @@
     ],
     "require": {
         "php": "^8.4",
-        "simbiat/database": "^2.12"
+        "simbiat/db-query": "^1"
     },
     "autoload": {
         "psr-4": {
