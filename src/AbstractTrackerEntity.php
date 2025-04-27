@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
+use Simbiat\Database\Query;
 use Simbiat\Database\Select;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
@@ -161,7 +162,7 @@ abstract class AbstractTrackerEntity
         }
         #Check if we have not updated before
         try {
-            $updated = Select::selectValue('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
+            $updated = Query::query('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id], return: 'value');
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return $e->getMessage()."\n".$e->getTraceAsString();
@@ -214,13 +215,13 @@ abstract class AbstractTrackerEntity
         try {
             if ($this::entityType !== 'achievement') {
                 if ($this::entityType === 'character') {
-                    $check = Select::check('SELECT `characterid` FROM `uc__user_to_ff_character` WHERE `characterid` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']]);
+                    $check = Query::query('SELECT `characterid` FROM `uc__user_to_ff_character` WHERE `characterid` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Character not linked to user'];
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
-                    $check = Select::check('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`characterid`=`uc__user_to_ff_character`.`characterid` WHERE `'.$this::entityType.'id` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']]);
+                    $check = Query::query('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`characterid`=`uc__user_to_ff_character`.`characterid` WHERE `'.$this::entityType.'id` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Group not linked to user'];
                     }
@@ -244,7 +245,7 @@ abstract class AbstractTrackerEntity
             return 400;
         }
         try {
-            $check = Select::check('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id]);
+            $check = Query::query('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id], return: 'check');
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return 503;

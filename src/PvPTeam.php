@@ -30,15 +30,15 @@ class PvPTeam extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Select::selectRow('SELECT * FROM `ffxiv__pvpteam` LEFT JOIN `ffxiv__server` ON `ffxiv__pvpteam`.`datacenterid`=`ffxiv__server`.`serverid` WHERE `pvpteamid`=:id', [':id' => $this->id]);
+        $data = Query::query('SELECT * FROM `ffxiv__pvpteam` LEFT JOIN `ffxiv__server` ON `ffxiv__pvpteam`.`datacenterid`=`ffxiv__server`.`serverid` WHERE `pvpteamid`=:id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get old names
-        $data['oldnames'] = Select::selectColumn('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvpteamid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']]);
+        $data['oldnames'] = Query::query('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvpteamid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
-        $data['members'] = Select::selectAll('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`characterid` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvprankid`, `userid` FROM `ffxiv__pvpteam_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__pvpteam_character`.`characterid` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvprankid`=`ffxiv__pvpteam_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__pvpteam_character`.`pvpteamid`=:id AND `current`=1 ORDER BY `ffxiv__pvpteam_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id]);
+        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`characterid` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvprankid`, `userid` FROM `ffxiv__pvpteam_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__pvpteam_character`.`characterid` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvprankid`=`ffxiv__pvpteam_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__pvpteam_character`.`pvpteamid`=:id AND `current`=1 ORDER BY `ffxiv__pvpteam_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
         unset($data['datacenterid'], $data['serverid'], $data['server']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
@@ -160,7 +160,7 @@ class PvPTeam extends AbstractTrackerEntity
                 ],
             ];
             #Get members as registered on the tracker
-            $trackMembers = Select::selectColumn('SELECT `characterid` FROM `ffxiv__pvpteam_character` WHERE `pvpteamid`=:pvpteamid AND `current`=1;', [':pvpteamid' => $this->id]);
+            $trackMembers = Query::query('SELECT `characterid` FROM `ffxiv__pvpteam_character` WHERE `pvpteamid`=:pvpteamid AND `current`=1;', [':pvpteamid' => $this->id], return: 'column');
             #Process members that left the team
             foreach ($trackMembers as $member) {
                 #Check if member from tracker is present in a Lodestone list
@@ -179,7 +179,7 @@ class PvPTeam extends AbstractTrackerEntity
             if (!empty($this->lodestone['members'])) {
                 foreach ($this->lodestone['members'] as $member => $details) {
                     #Check if a member is registered on the tracker while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Select::check('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member]);
+                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member], return: 'check');
                     if (!$this->lodestone['members'][$member]['registered']) {
                         #Create a basic entry of the character
                         $queries[] = [

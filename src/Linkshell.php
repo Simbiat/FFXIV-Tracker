@@ -29,15 +29,15 @@ class Linkshell extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Select::selectRow('SELECT * FROM `ffxiv__linkshell` LEFT JOIN `ffxiv__server` ON `ffxiv__linkshell`.`serverid`=`ffxiv__server`.`serverid` WHERE `linkshellid`=:id', [':id' => $this->id]);
+        $data = Query::query('SELECT * FROM `ffxiv__linkshell` LEFT JOIN `ffxiv__server` ON `ffxiv__linkshell`.`serverid`=`ffxiv__server`.`serverid` WHERE `linkshellid`=:id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get old names
-        $data['oldnames'] = Select::selectColumn('SELECT `name` FROM `ffxiv__linkshell_names` WHERE `linkshellid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']]);
+        $data['oldnames'] = Query::query('SELECT `name` FROM `ffxiv__linkshell_names` WHERE `linkshellid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
-        $data['members'] = Select::selectAll('SELECT \'character\' AS `type`, `ffxiv__linkshell_character`.`characterid` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__linkshell_rank`.`rank`, `ffxiv__linkshell_rank`.`lsrankid`, `userid` FROM `ffxiv__linkshell_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__linkshell_character`.`characterid` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_rank`.`lsrankid`=`ffxiv__linkshell_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__linkshell_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__linkshell_character`.`linkshellid`=:id AND `current`=1 ORDER BY `ffxiv__linkshell_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id]);
+        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__linkshell_character`.`characterid` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__linkshell_rank`.`rank`, `ffxiv__linkshell_rank`.`lsrankid`, `userid` FROM `ffxiv__linkshell_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__linkshell_character`.`characterid` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_rank`.`lsrankid`=`ffxiv__linkshell_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__linkshell_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__linkshell_character`.`linkshellid`=:id AND `current`=1 ORDER BY `ffxiv__linkshell_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
         unset($data['serverid']);
         if ($data['crossworld']) {
@@ -168,7 +168,7 @@ class Linkshell extends AbstractTrackerEntity
                 ],
             ];
             #Get members as registered on the tracker
-            $trackMembers = Select::selectColumn('SELECT `characterid` FROM `ffxiv__linkshell_character` WHERE `linkshellid`=:linkshellid AND `current`=1;', [':linkshellid' => $this->id]);
+            $trackMembers = Query::query('SELECT `characterid` FROM `ffxiv__linkshell_character` WHERE `linkshellid`=:linkshellid AND `current`=1;', [':linkshellid' => $this->id], return: 'column');
             #Process members that left the linkshell
             foreach ($trackMembers as $member) {
                 #Check if member from tracker is present in a Lodestone list
@@ -187,7 +187,7 @@ class Linkshell extends AbstractTrackerEntity
             if (!empty($this->lodestone['members'])) {
                 foreach ($this->lodestone['members'] as $member => $details) {
                     #Check if a member is registered on the tracker while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Select::check('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member]);
+                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member], return: 'check');
                     if (!$this->lodestone['members'][$member]['registered']) {
                         #Create a basic entry of the character
                         $queries[] = [
