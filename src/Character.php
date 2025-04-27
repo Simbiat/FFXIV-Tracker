@@ -390,7 +390,7 @@ class Character extends AbstractTrackerEntity
                 new User($character['userid'])->addAvatar(false, $this->lodestone['avatar'], (int)$this->id);
             }
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Errors::error_log($e, 'characterid: '.$this->id);
             return false;
         }

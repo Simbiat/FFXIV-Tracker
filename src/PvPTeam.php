@@ -216,7 +216,7 @@ class PvPTeam extends AbstractTrackerEntity
                 $this->charMassCron($this->lodestone['members']);
             }
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Errors::error_log($e, 'pvpteamid: '.$this->id);
             return false;
         }
