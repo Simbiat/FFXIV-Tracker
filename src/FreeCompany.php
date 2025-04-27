@@ -5,7 +5,6 @@ namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
-use Simbiat\Database\Select;
 use Simbiat\Website\Errors;
 use Simbiat\Website\Sanitization;
 use function count;
@@ -262,8 +261,6 @@ class FreeCompany extends AbstractTrackerEntity
             ];
             #Adding ranking
             if (!empty($this->lodestone['members']) && !empty($this->lodestone['weekly_rank']) && !empty($this->lodestone['monthly_rank'])) {
-                #$query ='SELECT * FROM (SELECT 9230690386249378390 AS `freecompanyid`, UTC_DATE() AS `date`, 1 AS `weekly`, 1 AS `monthly`, 1 AS `members` FROM DUAL WHERE 9230690386249378390 NOT IN (SELECT `freecompanyid` FROM (SELECT * FROM `ffxiv__freecompany_ranking` WHERE `freecompanyid`=9230690386249378390 ORDER BY `date` DESC LIMIT 1) `lastrecord` WHERE `weekly`=1 AND `monthly`=1) LIMIT 1) `actualinsert`;';
-                #echo 'INSERT IGNORE INTO `ffxiv__freecompany_ranking` (`freecompanyid`, `date`, `weekly`, `monthly`, `members`) SELECT * FROM (SELECT :freecompanyid AS `freecompanyid`, UTC_DATE() AS `date`, :weekly AS `weekly`, :monthly AS `monthly`, :members AS `members` FROM DUAL WHERE :freecompanyid NOT IN (SELECT `freecompanyid` FROM (SELECT * FROM `ffxiv__freecompany_ranking` WHERE `freecompanyid`=:freecompanyid ORDER BY `date` DESC LIMIT 1) `lastrecord` WHERE `weekly`=:weekly AND `monthly`=:monthly) LIMIT 1) `actualinsert`;';
                 $queries[] = [
                     'INSERT IGNORE INTO `ffxiv__freecompany_ranking` (`freecompanyid`, `date`, `weekly`, `monthly`, `members`) SELECT * FROM (SELECT :freecompanyid AS `freecompanyid`, UTC_DATE() AS `date`, :weekly AS `weekly`, :monthly AS `monthly`, :members AS `members` FROM DUAL WHERE :freecompanyid NOT IN (SELECT `freecompanyid` FROM (SELECT * FROM `ffxiv__freecompany_ranking` WHERE `freecompanyid`=:freecompanyid ORDER BY `date` DESC LIMIT 1) `lastrecord` WHERE `weekly`=:weekly AND `monthly`=:monthly) LIMIT 1) `actualinsert`;',
                     [

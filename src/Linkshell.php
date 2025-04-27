@@ -5,7 +5,6 @@ namespace Simbiat\FFXIV;
 
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
-use Simbiat\Database\Select;
 use Simbiat\Website\Errors;
 
 /**
