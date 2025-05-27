@@ -114,6 +114,9 @@ class Achievement extends AbstractTrackerEntity
         $dbSearchResult = new Lodestone()->searchDatabase('achievement', 0, 0, $searchFor)->getResult();
         #Remove counts elements from achievement database
         unset($dbSearchResult['database']['achievement']['pageCurrent'], $dbSearchResult['database']['achievement']['pageTotal'], $dbSearchResult['database']['achievement']['total']);
+        if (empty($dbSearchResult)) {
+            return null;
+        }
         #Flip the array of achievements (if any) to ease searching for the right element
         $dbSearchResult['database']['achievement'] = array_flip(array_combine(array_keys($dbSearchResult['database']['achievement']), array_column($dbSearchResult['database']['achievement'], 'name')));
         if (!empty($dbSearchResult['database']['achievement'][$searchFor])) {
