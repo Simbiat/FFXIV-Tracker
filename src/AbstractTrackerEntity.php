@@ -159,9 +159,16 @@ abstract class AbstractTrackerEntity
         if ($this->id === null) {
             return false;
         }
+        $id_column = match ($this::entityType) {
+            'character' => 'character_id',
+            'achievement' => 'achievement_id',
+            'freecompany' => 'fc_id',
+            'linkshell' => 'ls_id',
+            'pvpteam' => 'pvp_id',
+        };
         #Check if we have not updated before
         try {
-            $updated = Query::query('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id], return: 'value');
+            $updated = Query::query('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'value');
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return $e->getMessage()."\n".$e->getTraceAsString();
