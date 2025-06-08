@@ -18,7 +18,7 @@ class Linkshell extends AbstractTrackerEntity
     public array $dates = [];
     public ?string $community = null;
     public ?string $server = null;
-    public ?string $dataCenter = null;
+    public ?string $data_center = null;
     public array $oldNames = [];
     public array $members = [];
     
@@ -28,17 +28,17 @@ class Linkshell extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Query::query('SELECT * FROM `ffxiv__linkshell` LEFT JOIN `ffxiv__server` ON `ffxiv__linkshell`.`serverid`=`ffxiv__server`.`serverid` WHERE `linkshellid`=:id', [':id' => $this->id], return: 'row');
+        $data = Query::query('SELECT * FROM `ffxiv__linkshell` LEFT JOIN `ffxiv__server` ON `ffxiv__linkshell`.`server_id`=`ffxiv__server`.`server_id` WHERE `ls_id`=:id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get old names
-        $data['oldnames'] = Query::query('SELECT `name` FROM `ffxiv__linkshell_names` WHERE `linkshellid`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
+        $data['oldNames'] = Query::query('SELECT `name` FROM `ffxiv__linkshell_names` WHERE `ls_id`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
-        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__linkshell_character`.`characterid` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__linkshell_rank`.`rank`, `ffxiv__linkshell_rank`.`lsrankid`, `userid` FROM `ffxiv__linkshell_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`characterid`=`ffxiv__linkshell_character`.`characterid` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_rank`.`lsrankid`=`ffxiv__linkshell_character`.`rankid` LEFT JOIN `ffxiv__character` ON `ffxiv__linkshell_character`.`characterid`=`ffxiv__character`.`characterid` WHERE `ffxiv__linkshell_character`.`linkshellid`=:id AND `current`=1 ORDER BY `ffxiv__linkshell_character`.`rankid` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
+        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__linkshell_character`.`character_id` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__linkshell_rank`.`rank`, `ffxiv__linkshell_rank`.`ls_rank_id`, `user_id` FROM `ffxiv__linkshell_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`ffxiv__linkshell_character`.`character_id` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_rank`.`ls_rank_id`=`ffxiv__linkshell_character`.`rank_id` LEFT JOIN `ffxiv__character` ON `ffxiv__linkshell_character`.`character_id`=`ffxiv__character`.`character_id` WHERE `ffxiv__linkshell_character`.`ls_id`=:id AND `current`=1 ORDER BY `ffxiv__linkshell_character`.`rank_id` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
-        unset($data['serverid']);
+        unset($data['server_id']);
         if ($data['crossworld']) {
             unset($data['server']);
         }
@@ -63,7 +63,7 @@ class Linkshell extends AbstractTrackerEntity
     {
         $Lodestone = (new Lodestone());
         $data = $Lodestone->getLinkshellMembers($this->id, 0)->getResult();
-        if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]['server']) || (empty($data['linkshells'][$this->id]['members']) && (int)$data['linkshells'][$this->id]['memberscount'] > 0) || (!empty($data['linkshells'][$this->id]['members']) && \count($data['linkshells'][$this->id]['members']) < (int)$data['linkshells'][$this->id]['memberscount'])) {
+        if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]['server']) || (empty($data['linkshells'][$this->id]['members']) && (int)$data['linkshells'][$this->id]['membersCount'] > 0) || (!empty($data['linkshells'][$this->id]['members']) && \count($data['linkshells'][$this->id]['members']) < (int)$data['linkshells'][$this->id]['membersCount'])) {
             if (!empty($data['linkshells'][$this->id]['members']) && $data['linkshells'][$this->id]['members'] === 404) {
                 $this->delete();
                 return ['404' => true];
@@ -81,7 +81,7 @@ class Linkshell extends AbstractTrackerEntity
                 }
                 return 'Failed to get all necessary data for '.($this::crossworld ? 'Crossworld ' : '').'Linkshell '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
             }
-            #At some point empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
+            #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
             $data['linkshells'][$this->id]['empty'] = true;
         }
         $data = $data['linkshells'][$this->id];
@@ -100,17 +100,17 @@ class Linkshell extends AbstractTrackerEntity
     protected function process(array $fromDB): void
     {
         $this->name = $fromDB['name'];
-        $this->community = $fromDB['communityid'];
+        $this->community = $fromDB['community_id'];
         $this->dates = [
             'formed' => (empty($fromDB['formed']) ? null : strtotime($fromDB['formed'])),
             'registered' => strtotime($fromDB['registered']),
             'updated' => strtotime($fromDB['updated']),
             'deleted' => (empty($fromDB['deleted']) ? null : strtotime($fromDB['deleted'])),
         ];
-        $this->oldNames = $fromDB['oldnames'];
+        $this->oldNames = $fromDB['oldNames'];
         $this->members = $fromDB['members'];
         if ($this::crossworld) {
-            $this->dataCenter = $fromDB['datacenter'];
+            $this->data_center = $fromDB['data_center'];
         } else {
             $this->server = $fromDB['server'];
         }
@@ -127,9 +127,9 @@ class Linkshell extends AbstractTrackerEntity
             #If the `empty` flag is set, it means that the Lodestone page is empty, so we can't update anything besides name, data center and formed date
             if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true) {
                 $queries[] = [
-                    'UPDATE `ffxiv__linkshell` SET `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL WHERE `linkshellid`=:linkshellid',
+                    'UPDATE `ffxiv__linkshell` SET `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL WHERE `ls_id`=:ls_id',
                     [
-                        ':linkshellid' => $this->id,
+                        ':ls_id' => $this->id,
                         ':name' => $this->lodestone['name'],
                         ':crossworld' => [$this::crossworld, 'bool'],
                         ':formed' => [
@@ -141,43 +141,43 @@ class Linkshell extends AbstractTrackerEntity
             } else {
                 #Main query to insert or update a Linkshell
                 $queries[] = [
-                    'INSERT INTO `ffxiv__linkshell`(`linkshellid`, `name`, `crossworld`, `formed`, `registered`, `updated`, `deleted`, `serverid`, `communityid`) VALUES (:linkshellid, :name, :crossworld, :formed, UTC_DATE(), CURRENT_TIMESTAMP(), NULL, (SELECT `serverid` FROM `ffxiv__server` WHERE `server`=:server OR `datacenter`=:server ORDER BY `serverid` LIMIT 1), :communityid) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL, `serverid`=(SELECT `serverid` FROM `ffxiv__server` WHERE `server`=:server OR `datacenter`=:server ORDER BY `serverid` LIMIT 1), `communityid`=:communityid;',
+                    'INSERT INTO `ffxiv__linkshell`(`ls_id`, `name`, `crossworld`, `formed`, `registered`, `updated`, `deleted`, `server_id`, `community_id`) VALUES (:ls_id, :name, :crossworld, :formed, UTC_DATE(), CURRENT_TIMESTAMP(), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), :community_id) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL, `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), `community_id`=:community_id;',
                     [
-                        ':linkshellid' => $this->id,
-                        ':server' => $this->lodestone['server'] ?? $this->lodestone['dataCenter'],
+                        ':ls_id' => $this->id,
+                        ':server' => $this->lodestone['server'] ?? $this->lodestone['data_center'],
                         ':name' => $this->lodestone['name'],
                         ':crossworld' => [$this::crossworld, 'bool'],
                         ':formed' => [
                             (empty($this->lodestone['formed']) ? null : $this->lodestone['formed']),
                             (empty($this->lodestone['formed']) ? 'null' : 'date'),
                         ],
-                        ':communityid' => [
-                            (empty($this->lodestone['communityid']) ? null : $this->lodestone['communityid']),
-                            (empty($this->lodestone['communityid']) ? 'null' : 'string'),
+                        ':community_id' => [
+                            (empty($this->lodestone['community_id']) ? null : $this->lodestone['community_id']),
+                            (empty($this->lodestone['community_id']) ? 'null' : 'string'),
                         ],
                     ],
                 ];
             }
             #Register Linkshell name if it's not registered already
             $queries[] = [
-                'INSERT IGNORE INTO `ffxiv__linkshell_names`(`linkshellid`, `name`) VALUES (:linkshellid, :name);',
+                'INSERT IGNORE INTO `ffxiv__linkshell_names`(`ls_id`, `name`) VALUES (:ls_id, :name);',
                 [
-                    ':linkshellid' => $this->id,
+                    ':ls_id' => $this->id,
                     ':name' => $this->lodestone['name'],
                 ],
             ];
             #Get members as registered on the tracker
-            $trackMembers = Query::query('SELECT `characterid` FROM `ffxiv__linkshell_character` WHERE `linkshellid`=:linkshellid AND `current`=1;', [':linkshellid' => $this->id], return: 'column');
+            $trackMembers = Query::query('SELECT `character_id` FROM `ffxiv__linkshell_character` WHERE `ls_id`=:ls_id AND `current`=1;', [':ls_id' => $this->id], return: 'column');
             #Process members that left the linkshell
             foreach ($trackMembers as $member) {
                 #Check if member from tracker is present in a Lodestone list
                 if (!isset($this->lodestone['members'][$member])) {
                     #Update status for the character
                     $queries[] = [
-                        'UPDATE `ffxiv__linkshell_character` SET `current`=0 WHERE `linkshellid`=:linkshellId AND `characterid`=:characterid;',
+                        'UPDATE `ffxiv__linkshell_character` SET `current`=0 WHERE `ls_id`=:ls_id AND `character_id`=:character_id;',
                         [
-                            ':characterid' => $member,
-                            ':linkshellId' => $this->id,
+                            ':character_id' => $member,
+                            ':ls_id' => $this->id,
                         ],
                     ];
                 }
@@ -186,32 +186,32 @@ class Linkshell extends AbstractTrackerEntity
             if (!empty($this->lodestone['members'])) {
                 foreach ($this->lodestone['members'] as $member => $details) {
                     #Check if a member is registered on the tracker while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `characterid` FROM `ffxiv__character` WHERE `characterid`=:characterid', [':characterid' => $member], return: 'check');
+                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `character_id` FROM `ffxiv__character` WHERE `character_id`=:character_id', [':character_id' => $member], return: 'check');
                     if (!$this->lodestone['members'][$member]['registered']) {
                         #Create a basic entry of the character
                         $queries[] = [
                             'INSERT IGNORE INTO `ffxiv__character`(
-                            `characterid`, `serverid`, `name`, `registered`, `updated`, `avatar`, `gcrankid`
+                            `character_id`, `server_id`, `name`, `registered`, `updated`, `avatar`, `gc_rank_id`
                         )
                         VALUES (
-                            :characterid, (SELECT `serverid` FROM `ffxiv__server` WHERE `server`=:server), :name, UTC_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()), :avatar, `gcrankid` = (SELECT `gcrankid` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gcrankid` LIMIT 1)
+                            :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, UTC_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1)
                         ) ON DUPLICATE KEY UPDATE `deleted`=NULL;',
                             [
-                                ':characterid' => $member,
+                                ':character_id' => $member,
                                 ':server' => $details['server'],
                                 ':name' => $details['name'],
                                 ':avatar' => str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
-                                ':gcRank' => (empty($details['grandCompany']['rank']) ? '' : $details['grandCompany']['rank']),
+                                ':gcRank' => (empty($details['grand_company']['rank']) ? '' : $details['grand_company']['rank']),
                             ]
                         ];
                     }
                     #Insert/update character relationship with linkshell
                     $queries[] = [
-                        'INSERT INTO `ffxiv__linkshell_character` (`linkshellid`, `characterid`, `rankid`, `current`) VALUES (:linkshellid, :memberid, (SELECT `lsrankid` FROM `ffxiv__linkshell_rank` WHERE `rank`=:rank LIMIT 1), 1) ON DUPLICATE KEY UPDATE `rankid`=(SELECT `lsrankid` FROM `ffxiv__linkshell_rank` WHERE `rank`=:rank AND `rank` IS NOT NULL LIMIT 1), `current`=1;',
+                        'INSERT INTO `ffxiv__linkshell_character` (`ls_id`, `character_id`, `rank_id`, `current`) VALUES (:ls_id, :memberId, (SELECT `ls_rank_id` FROM `ffxiv__linkshell_rank` WHERE `rank`=:rank LIMIT 1), 1) ON DUPLICATE KEY UPDATE `rank_id`=(SELECT `ls_rank_id` FROM `ffxiv__linkshell_rank` WHERE `rank`=:rank AND `rank` IS NOT NULL LIMIT 1), `current`=1;',
                         [
-                            ':linkshellid' => $this->id,
-                            ':memberid' => $member,
-                            ':rank' => (empty($details['lsrank']) ? 'Member' : $details['lsrank'])
+                            ':ls_id' => $this->id,
+                            ':memberId' => $member,
+                            ':rank' => (empty($details['lsRank']) ? 'Member' : $details['lsRank'])
                         ],
                     ];
                 }
@@ -224,7 +224,7 @@ class Linkshell extends AbstractTrackerEntity
             }
             return true;
         } catch (\Throwable $e) {
-            Errors::error_log($e, 'linkshellid: '.$this->id);
+            Errors::error_log($e, 'ls_id: '.$this->id);
             return false;
         }
     }
@@ -239,12 +239,12 @@ class Linkshell extends AbstractTrackerEntity
             $queries = [];
             #Remove characters from the group
             $queries[] = [
-                'UPDATE `ffxiv__linkshell_character` SET `current`=0 WHERE `linkshellid`=:groupId;',
-                [':groupId' => $this->id,]
+                'UPDATE `ffxiv__linkshell_character` SET `current`=0 WHERE `ls_id`=:group_id;',
+                [':group_id' => $this->id,]
             ];
             #Update linkshell
             $queries[] = [
-                'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `linkshellid` = :id',
+                'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `ls_id` = :id',
                 [':id' => $this->id],
             ];
             return Query::query($queries);

@@ -21,8 +21,8 @@ class Achievement extends AbstractTrackerEntity
     public ?string $category = null;
     public ?string $subcategory = null;
     public ?string $icon = null;
-    public ?string $howto = null;
-    public ?string $dbid = null;
+    public ?string $how_to = null;
+    public ?string $db_id = null;
     public array $rewards = [];
     public array $characters = [];
     
@@ -33,15 +33,15 @@ class Achievement extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information
-        $data = Query::query('SELECT * FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`achievementid` = :id', [':id' => $this->id], return: 'row');
+        $data = Query::query('SELECT * FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`achievement_id` = :id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
         if (empty($data)) {
             return [];
         }
         #Get last characters with this achievement
-        $data['characters'] = Query::query('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`characterid` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`characterid` = `ffxiv__character_achievement`.`characterid` WHERE `ffxiv__character_achievement`.`achievementid` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id], return: 'all');
-        #Register for an update if old enough or category or howto or dbid are empty. Also check that this is not a bot.
-        if (empty($_SESSION['UA']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['howto']) || empty($data['dbid']) || (time() - strtotime($data['updated'])) >= 31536000)) {
+        $data['characters'] = Query::query('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`character_id` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id` = `ffxiv__character_achievement`.`character_id` WHERE `ffxiv__character_achievement`.`achievement_id` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id], return: 'all');
+        #Register for an update if old enough or category or how_to or db_id are empty. Also check that this is not a bot.
+        if (empty($_SESSION['UA']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (time() - strtotime($data['updated'])) >= 31536000)) {
             new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
         }
         return $data;
@@ -64,16 +64,16 @@ class Achievement extends AbstractTrackerEntity
         }
         #Cache Lodestone
         $Lodestone = new Lodestone();
-        #If we do not have dbid already - try to get one
-        if (empty($achievement['dbid'])) {
-            $achievement['dbid'] = $this->getDBID($achievement['name']);
+        #If we do not have db_id already - try to get one
+        if (empty($achievement['db_id'])) {
+            $achievement['db_id'] = $this->getDBID($achievement['name']);
         }
-        #Somewhat simpler and faster processing if we have dbid already
-        if (!empty($achievement['dbid'])) {
-            $data = $Lodestone->getAchievementFromDB($achievement['dbid'])->getResult();
-            $data = $data['database']['achievement'][$achievement['dbid']];
+        #Somewhat simpler and faster processing if we have db_id already
+        if (!empty($achievement['db_id'])) {
+            $data = $Lodestone->getAchievementFromDB($achievement['db_id'])->getResult();
+            $data = $data['database']['achievement'][$achievement['db_id']];
             unset($data['time']);
-            $data['dbid'] = $achievement['dbid'];
+            $data['db_id'] = $achievement['db_id'];
             $data['id'] = $this->id;
             return $data;
         }
@@ -92,7 +92,7 @@ class Achievement extends AbstractTrackerEntity
             }
             if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && \is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
                 #Try to get achievement ID as seen in Lodestone database (play guide)
-                $data['characters'][$char['id']]['achievements'][$this->id]['dbid'] = $this->getDBID($data['characters'][$char['id']]['achievements'][$this->id]['name']);
+                $data['characters'][$char['id']]['achievements'][$this->id]['db_id'] = $this->getDBID($data['characters'][$char['id']]['achievements'][$this->id]['name']);
                 #Remove time
                 unset($data['characters'][$char['id']]['achievements'][$this->id]['time']);
                 $data = $data['characters'][$char['id']]['achievements'][$this->id];
@@ -104,7 +104,7 @@ class Achievement extends AbstractTrackerEntity
     }
     
     /**
-     * Helper function to get dbid from Lodestone based on the achievement name
+     * Helper function to get db_id from Lodestone based on the achievement name
      * @param string $searchFor
      *
      * @return string|null
@@ -139,19 +139,19 @@ class Achievement extends AbstractTrackerEntity
         $this->category = $fromDB['category'];
         $this->subcategory = $fromDB['subcategory'];
         $this->icon = $fromDB['icon'];
-        $this->howto = $fromDB['howto'];
-        $this->dbid = $fromDB['dbid'];
+        $this->how_to = $fromDB['how_to'];
+        $this->db_id = $fromDB['db_id'];
         $this->rewards = [
             'points' => (int)$fromDB['points'],
             'title' => $fromDB['title'],
             'item' => [
                 'name' => $fromDB['item'],
-                'icon' => $fromDB['itemicon'],
-                'id' => $fromDB['itemid'],
+                'icon' => $fromDB['item_icon'],
+                'id' => $fromDB['item_id'],
             ],
         ];
         $this->characters = [
-            'total' => (int)$fromDB['earnedby'],
+            'total' => (int)$fromDB['earned_by'],
             'last' => $fromDB['characters'],
         ];
     }
@@ -165,7 +165,7 @@ class Achievement extends AbstractTrackerEntity
         
         #Prepare bindings for actual update
         $bindings = [];
-        $bindings[':achievementid'] = $this->id;
+        $bindings[':achievement_id'] = $this->id;
         $bindings[':name'] = $this->lodestone['name'];
         $bindings[':icon'] = self::removeLodestoneDomain($this->lodestone['icon']);
         #Download icon
@@ -176,10 +176,10 @@ class Achievement extends AbstractTrackerEntity
         $bindings[':points'] = $this->lodestone['points'];
         $bindings[':category'] = $this->lodestone['category'];
         $bindings[':subcategory'] = $this->lodestone['subcategory'];
-        if (empty($this->lodestone['howto'])) {
-            $bindings[':howto'] = [NULL, 'null'];
+        if (empty($this->lodestone['how_to'])) {
+            $bindings[':how_to'] = [NULL, 'null'];
         } else {
-            $bindings[':howto'] = $this->lodestone['howto'];
+            $bindings[':how_to'] = $this->lodestone['how_to'];
         }
         if (empty($this->lodestone['title'])) {
             $bindings[':title'] = [NULL, 'null'];
@@ -192,29 +192,29 @@ class Achievement extends AbstractTrackerEntity
             $bindings[':item'] = $this->lodestone['item']['name'];
         }
         if (empty($this->lodestone['item']['icon'])) {
-            $bindings[':itemicon'] = [NULL, 'null'];
+            $bindings[':item_icon'] = [NULL, 'null'];
         } else {
-            $bindings[':itemicon'] = self::removeLodestoneDomain($this->lodestone['item']['icon']);
+            $bindings[':item_icon'] = self::removeLodestoneDomain($this->lodestone['item']['icon']);
             #Download icon
-            $webp = Images::download($this->lodestone['item']['icon'], Config::$icons.$bindings[':itemicon']);
+            $webp = Images::download($this->lodestone['item']['icon'], Config::$icons.$bindings[':item_icon']);
             if ($webp) {
-                $bindings[':itemicon'] = str_replace('.png', '.webp', $bindings[':itemicon']);
+                $bindings[':item_icon'] = str_replace('.png', '.webp', $bindings[':item_icon']);
             }
         }
         if (empty($this->lodestone['item']['id'])) {
-            $bindings[':itemid'] = [NULL, 'null'];
+            $bindings[':item_id'] = [NULL, 'null'];
         } else {
-            $bindings[':itemid'] = $this->lodestone['item']['id'];
+            $bindings[':item_id'] = $this->lodestone['item']['id'];
         }
-        if (empty($this->lodestone['dbid'])) {
-            $bindings[':dbid'] = [NULL, 'null'];
+        if (empty($this->lodestone['db_id'])) {
+            $bindings[':db_id'] = [NULL, 'null'];
         } else {
-            $bindings[':dbid'] = $this->lodestone['dbid'];
+            $bindings[':db_id'] = $this->lodestone['db_id'];
         }
         try {
-            return Query::query('INSERT INTO `ffxiv__achievement` SET `achievementid`=:achievementid, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howto`=:howto, `title`=:title, `item`=:item, `itemicon`=:itemicon, `itemid`=:itemid, `dbid`=:dbid ON DUPLICATE KEY UPDATE `achievementid`=:achievementid, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howto`=:howto, `title`=:title, `item`=:item, `itemicon`=:itemicon, `itemid`=:itemid, `dbid`=:dbid, `updated`=CURRENT_TIMESTAMP()', $bindings);
+            return Query::query('INSERT INTO `ffxiv__achievement` SET `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `how_to`=:how_to, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id ON DUPLICATE KEY UPDATE `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howTo`=:howTo, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id, `updated`=CURRENT_TIMESTAMP()', $bindings);
         } catch (\Throwable $e) {
-            Errors::error_log($e, 'achievementid: '.$this->id);
+            Errors::error_log($e, 'achievement_id: '.$this->id);
             return false;
         }
     }

@@ -149,7 +149,7 @@ abstract class AbstractTrackerEntity
     
     /**
      * Update the entity
-     * @param bool $allowSleep Flag to allow sleep, in case Lodestone is throttling us
+     * @param bool $allowSleep Flag to allow sleep if Lodestone is throttling us
      *
      * @return string|bool
      */
@@ -205,7 +205,7 @@ abstract class AbstractTrackerEntity
      */
     public function updateFromApi(): bool|array|string
     {
-        if ($_SESSION['userid'] === 1) {
+        if ($_SESSION['user_id'] === 1) {
             return ['http_error' => 403, 'reason' => 'Authentication required'];
         }
         if (empty(array_intersect(['refreshOwnedFF', 'refreshAllFF'], $_SESSION['permissions']))) {
@@ -214,13 +214,13 @@ abstract class AbstractTrackerEntity
         try {
             if ($this::entityType !== 'achievement') {
                 if ($this::entityType === 'character') {
-                    $check = Query::query('SELECT `characterid` FROM `uc__user_to_ff_character` WHERE `characterid` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']], return: 'check');
+                    $check = Query::query('SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `character_id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Character not linked to user'];
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
-                    $check = Query::query('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`characterid`=`uc__user_to_ff_character`.`characterid` WHERE `'.$this::entityType.'id` = :id AND `userid`=:userid', [':id' => $this->id, ':userid' => $_SESSION['userid']], return: 'check');
+                    $check = Query::query('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`character_id`=`uc__user_to_ff_character`.`character_id` WHERE `'.$this::entityType.'id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Group not linked to user'];
                     }
@@ -271,7 +271,7 @@ abstract class AbstractTrackerEntity
         if ($this::entityType === 'character' && isset($this->lodestone['private']) && $this->lodestone['private'] === true) {
             return 403;
         }
-        #At some point empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
+        #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
         #Since they lack some basic information, it's not possible to register them, so treat them as private
         if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && \in_array($this::entityType, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
             return 403;
@@ -461,7 +461,7 @@ abstract class AbstractTrackerEntity
     protected static function CrestMerge(array $images, string $finalPath, bool $debug = false): bool
     {
         try {
-            #Don't do anything if empty array
+            #Don't do anything if an empty array
             if (empty($images)) {
                 return false;
             }
@@ -492,13 +492,13 @@ abstract class AbstractTrackerEntity
         foreach ($results as $key => $result) {
             if (isset($result['crest_part_1']) || isset($result['crest_part_2']) || isset($result['crest_part_3'])) {
                 $results[$key]['icon'] = self::crestToFavicon([$result['crest_part_1'], $result['crest_part_2'], $result['crest_part_3']]);
-                if (isset($result['grandcompanyid']) && str_contains($results[$key]['icon'], 'not_found') && \in_array($result['grandcompanyid'], [1, 2, 3], true)) {
-                    $results[$key]['icon'] = $result['grandcompanyid'];
+                if (isset($result['gc_id']) && str_contains($results[$key]['icon'], 'not_found') && \in_array($result['gc_id'], [1, 2, 3], true)) {
+                    $results[$key]['icon'] = $result['gc_id'];
                 }
             } else {
                 $results[$key]['icon'] = '/assets/images/fftracker/merged-crests/not_found.webp';
             }
-            unset($results[$key]['crest_part_1'], $results[$key]['crest_part_2'], $results[$key]['crest_part_3'], $results[$key]['grandcompanyid']);
+            unset($results[$key]['crest_part_1'], $results[$key]['crest_part_2'], $results[$key]['crest_part_3'], $results[$key]['gc_id']);
         }
         return $results;
     }
