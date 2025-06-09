@@ -380,8 +380,12 @@ abstract class AbstractTrackerEntity
                             if ($i !== $emblemIndex) {
                                 $emblemFile = Config::$crestsComponents.'emblems/'.$subDir.'/'.preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$i.'$3', basename($image));
                                 if (!is_file($emblemFile)) {
+                                    #We generate the link to download an emblem
+                                    #In addition S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
+                                    #This was fixed by SE at some point, but now it's broken again, so we change the URL ourselves
+                                    $url_to_download = preg_replace(['/(.+_)(\d{2})(_.+\.png)/', '/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/'], ['${1}0'.$i.'$3', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png'], $image);
                                     try {
-                                        Images::download(preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$i.'$3', $image), $emblemFile, false);
+                                        Images::download($url_to_download, $emblemFile, false);
                                     } catch (\Throwable) {
                                         #Do nothing, not critical
                                     }
