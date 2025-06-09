@@ -212,7 +212,7 @@ class Achievement extends AbstractTrackerEntity
             $bindings[':db_id'] = $this->lodestone['db_id'];
         }
         try {
-            return Query::query('INSERT INTO `ffxiv__achievement` SET `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `how_to`=:how_to, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id ON DUPLICATE KEY UPDATE `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `howTo`=:howTo, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id, `updated`=CURRENT_TIMESTAMP()', $bindings);
+            return Query::query('INSERT INTO `ffxiv__achievement` SET `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `how_to`=:how_to, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id ON DUPLICATE KEY UPDATE `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `how_to`=:how_to, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id, `updated`=CURRENT_TIMESTAMP()', $bindings);
         } catch (\Throwable $e) {
             Errors::error_log($e, 'achievement_id: '.$this->id);
             return false;
