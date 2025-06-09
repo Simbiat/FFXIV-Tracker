@@ -218,6 +218,13 @@ abstract class AbstractTrackerEntity
         if (empty(array_intersect(['refreshOwnedFF', 'refreshAllFF'], $_SESSION['permissions']))) {
             return ['http_error' => 403, 'reason' => 'No `'.implode('` or `', ['refreshOwnedFF', 'refreshAllFF']).'` permission'];
         }
+        $id_column = match ($this::entityType) {
+            'character' => 'character_id',
+            'achievement' => 'achievement_id',
+            'freecompany' => 'fc_id',
+            'linkshell' => 'ls_id',
+            'pvpteam' => 'pvp_id',
+        };
         try {
             if ($this::entityType !== 'achievement') {
                 if ($this::entityType === 'character') {
@@ -227,7 +234,7 @@ abstract class AbstractTrackerEntity
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
-                    $check = Query::query('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`character_id`=`uc__user_to_ff_character`.`character_id` WHERE `'.$this::entityType.'id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
+                    $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`character_id`=`uc__user_to_ff_character`.`character_id` WHERE `'.$id_column.'` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Group not linked to user'];
                     }
@@ -250,8 +257,15 @@ abstract class AbstractTrackerEntity
         if ($this->id === null) {
             return 400;
         }
+        $id_column = match ($this::entityType) {
+            'character' => 'character_id',
+            'achievement' => 'achievement_id',
+            'freecompany' => 'fc_id',
+            'linkshell' => 'ls_id',
+            'pvpteam' => 'pvp_id',
+        };
         try {
-            $check = Query::query('SELECT `'.$this::entityType.'id` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$this::entityType.'id` = :id', [':id' => $this->id], return: 'check');
+            $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'check');
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return 503;
