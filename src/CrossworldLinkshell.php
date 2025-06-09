@@ -6,6 +6,6 @@ namespace Simbiat\FFXIV;
 class CrossworldLinkshell extends Linkshell
 {
     #Custom properties
-    protected const bool crossworld = true;
+    protected const bool CROSSWORLD = true;
     protected string $idFormat = '/^[a-z0-9]{40}$/m';
 }

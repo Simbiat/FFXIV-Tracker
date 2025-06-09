@@ -25,7 +25,7 @@ abstract class AbstractTrackerEntity
     protected string $idFormat = '/^\d+$/m';
     #Debug flag
     protected bool $debug = false;
-    protected const entityType = 'character';
+    protected const ENTITY_TYPE = 'character';
     public string $name = '';
     
     protected null|array $lodestone = null;
@@ -159,7 +159,7 @@ abstract class AbstractTrackerEntity
         if ($this->id === null) {
             return false;
         }
-        $id_column = match ($this::entityType) {
+        $id_column = match ($this::ENTITY_TYPE) {
             'character' => 'character_id',
             'achievement' => 'achievement_id',
             'freecompany' => 'fc_id',
@@ -168,7 +168,7 @@ abstract class AbstractTrackerEntity
         };
         #Check if we have not updated before
         try {
-            $updated = Query::query('SELECT `updated` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'value');
+            $updated = Query::query('SELECT `updated` FROM `ffxiv__'.$this::ENTITY_TYPE.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'value');
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return $e->getMessage()."\n".$e->getTraceAsString();
@@ -183,7 +183,7 @@ abstract class AbstractTrackerEntity
             try {
                 $tempLodestone = $this->getFromLodestone($allowSleep);
             } catch (\Throwable $exception) {
-                Errors::error_log($exception, 'Failed to get '.$this::entityType.' with ID '.$this->id, debug: $this->debug);
+                Errors::error_log($exception, 'Failed to get '.$this::ENTITY_TYPE.' with ID '.$this->id, debug: $this->debug);
                 return $exception->getMessage()."\r\n".$exception->getTraceAsString();
             }
             if (!is_array($tempLodestone)) {
@@ -196,12 +196,12 @@ abstract class AbstractTrackerEntity
             return true;
         }
         #Characters can mark their profiles as private on Lodestone since Dawntrail
-        if ($this::entityType === 'character' && isset($this->lodestone['private']) && $this->lodestone['private'] === true) {
+        if ($this::ENTITY_TYPE === 'character' && isset($this->lodestone['private']) && $this->lodestone['private'] === true) {
             return true;
         }
         unset($this->lodestone['404']);
         if (empty($this->lodestone['name'])) {
-            return 'No name found for '.$this::entityType.' ID `'.$this->id.'`';
+            return 'No name found for '.$this::ENTITY_TYPE.' ID `'.$this->id.'`';
         }
         return $this->updateDB();
     }
@@ -218,7 +218,7 @@ abstract class AbstractTrackerEntity
         if (empty(array_intersect(['refreshOwnedFF', 'refreshAllFF'], $_SESSION['permissions']))) {
             return ['http_error' => 403, 'reason' => 'No `'.implode('` or `', ['refreshOwnedFF', 'refreshAllFF']).'` permission'];
         }
-        $id_column = match ($this::entityType) {
+        $id_column = match ($this::ENTITY_TYPE) {
             'character' => 'character_id',
             'achievement' => 'achievement_id',
             'freecompany' => 'fc_id',
@@ -226,15 +226,15 @@ abstract class AbstractTrackerEntity
             'pvpteam' => 'pvp_id',
         };
         try {
-            if ($this::entityType !== 'achievement') {
-                if ($this::entityType === 'character') {
+            if ($this::ENTITY_TYPE !== 'achievement') {
+                if ($this::ENTITY_TYPE === 'character') {
                     $check = Query::query('SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `character_id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Character not linked to user'];
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
-                    $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::entityType.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::entityType.'_character`.`character_id`=`uc__user_to_ff_character`.`character_id` WHERE `'.$id_column.'` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
+                    $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::ENTITY_TYPE.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::ENTITY_TYPE.'_character`.`character_id`=`uc__user_to_ff_character`.`character_id` WHERE `'.$id_column.'` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Group not linked to user'];
                     }
@@ -257,7 +257,7 @@ abstract class AbstractTrackerEntity
         if ($this->id === null) {
             return 400;
         }
-        $id_column = match ($this::entityType) {
+        $id_column = match ($this::ENTITY_TYPE) {
             'character' => 'character_id',
             'achievement' => 'achievement_id',
             'freecompany' => 'fc_id',
@@ -265,7 +265,7 @@ abstract class AbstractTrackerEntity
             'pvpteam' => 'pvp_id',
         };
         try {
-            $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::entityType.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'check');
+            $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::ENTITY_TYPE.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'check');
         } catch (\Throwable $e) {
             Errors::error_log($e, debug: $this->debug);
             return 503;
@@ -278,7 +278,7 @@ abstract class AbstractTrackerEntity
         try {
             $tempLodestone = $this->getFromLodestone();
         } catch (\Throwable $exception) {
-            Errors::error_log($exception, 'Failed to get '.$this::entityType.' with ID '.$this->id, debug: $this->debug);
+            Errors::error_log($exception, 'Failed to get '.$this::ENTITY_TYPE.' with ID '.$this->id, debug: $this->debug);
             return false;
         }
         if (!is_array($tempLodestone)) {
@@ -289,12 +289,12 @@ abstract class AbstractTrackerEntity
             return 404;
         }
         #Characters can mark their profiles as private on Lodestone since Dawntrail
-        if ($this::entityType === 'character' && isset($this->lodestone['private']) && $this->lodestone['private'] === true) {
+        if ($this::ENTITY_TYPE === 'character' && isset($this->lodestone['private']) && $this->lodestone['private'] === true) {
             return 403;
         }
         #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
         #Since they lack some basic information, it's not possible to register them, so treat them as private
-        if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && \in_array($this::entityType, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
+        if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && \in_array($this::ENTITY_TYPE, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
             return 403;
         }
         unset($this->lodestone['404']);

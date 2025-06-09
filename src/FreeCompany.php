@@ -15,7 +15,7 @@ use function count;
 class FreeCompany extends AbstractTrackerEntity
 {
     #Custom properties
-    protected const string entityType = 'freecompany';
+    protected const string ENTITY_TYPE = 'freecompany';
     public array $dates = [];
     public ?string $tag = null;
     public array $crest = [];

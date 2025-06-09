@@ -15,7 +15,7 @@ use Simbiat\Website\Images;
 class Achievement extends AbstractTrackerEntity
 {
     #Custom properties
-    protected const string entityType = 'achievement';
+    protected const string ENTITY_TYPE = 'achievement';
     public int $updated;
     public int $registered;
     public ?string $category = null;

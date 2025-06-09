@@ -13,7 +13,7 @@ use Simbiat\Website\Errors;
 class PvPTeam extends AbstractTrackerEntity
 {
     #Custom properties
-    protected const string entityType = 'pvpteam';
+    protected const string ENTITY_TYPE = 'pvpteam';
     protected string $idFormat = '/^[a-z\d]{40}$/m';
     public array $dates = [];
     public ?string $community = null;

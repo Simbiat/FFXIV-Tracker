@@ -20,7 +20,7 @@ class Statistics
     /**
      * List of supported statistics types
      */
-    private const array statisticsType = ['raw', 'characters', 'groups', 'achievements', 'timelines', 'bugs', 'other'];
+    private const array STATISTICS_TYPE = ['raw', 'characters', 'groups', 'achievements', 'timelines', 'bugs', 'other'];
     
     /**
      * @param string $type
@@ -29,11 +29,11 @@ class Statistics
      * @throws \JsonException
      * @throws \Exception
      */
-    public function update(#[ExpectedValues(self::statisticsType)] string $type = 'other'): array
+    public function update(#[ExpectedValues(self::STATISTICS_TYPE)] string $type = 'other'): array
     {
         $data = [];
         #Sanitize type
-        if (!in_array($type, self::statisticsType, true)) {
+        if (!in_array($type, self::STATISTICS_TYPE, true)) {
             $type = 'other';
         }
         #Create a path if missing
@@ -305,26 +305,26 @@ class Statistics
         );
         #Split by entity type
         $data['bugs']['duplicateNames'] = Splitters::splitByKey($duplicateNames, 'type', keepKey: true);
-        foreach ($data['bugs']['duplicateNames'] as $entityType => $namesData) {
+        foreach ($data['bugs']['duplicateNames'] as $entity_type => $namesData) {
             #Split by server/data center
-            $data['bugs']['duplicateNames'][$entityType] = Splitters::splitByKey($namesData, (in_array($entityType, ['pvpteam', 'crosswordlinkshell']) ? 'data_center' : 'server'));
-            foreach ($data['bugs']['duplicateNames'][$entityType] as $server => $serverData) {
+            $data['bugs']['duplicateNames'][$entity_type] = Splitters::splitByKey($namesData, (in_array($entity_type, ['pvpteam', 'crosswordlinkshell']) ? 'data_center' : 'server'));
+            foreach ($data['bugs']['duplicateNames'][$entity_type] as $server => $serverData) {
                 #Split by name
-                $data['bugs']['duplicateNames'][$entityType][$server] = Splitters::splitByKey($serverData, 'name', keepKey: true, caseInsensitive: true);
-                foreach ($data['bugs']['duplicateNames'][$entityType][$server] as $name => $nameData) {
-                    if (in_array($entityType, ['freecompany', 'pvpteam'])) {
+                $data['bugs']['duplicateNames'][$entity_type][$server] = Splitters::splitByKey($serverData, 'name', keepKey: true, caseInsensitive: true);
+                foreach ($data['bugs']['duplicateNames'][$entity_type][$server] as $name => $nameData) {
+                    if (in_array($entity_type, ['freecompany', 'pvpteam'])) {
                         $nameData = AbstractTrackerEntity::cleanCrestResults($nameData);
                     }
                     foreach ($nameData as $key => $duplicates) {
                         #Clean up
                         unset($duplicates['crest_part_1'], $duplicates['crest_part_2'], $duplicates['crest_part_3']);
-                        if (in_array($entityType, ['crossworldlinkshell', 'pvpteam'])) {
+                        if (in_array($entity_type, ['crossworldlinkshell', 'pvpteam'])) {
                             unset($duplicates['server']);
                         } else {
                             unset($duplicates['data_center']);
                         }
                         #Update array
-                        $data['bugs']['duplicateNames'][$entityType][$server][$name][$key] = $duplicates;
+                        $data['bugs']['duplicateNames'][$entity_type][$server][$name][$key] = $duplicates;
                     }
                 }
             }

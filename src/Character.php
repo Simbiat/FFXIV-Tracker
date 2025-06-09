@@ -540,7 +540,7 @@ class Character extends AbstractTrackerEntity
             #Link character to user
             $result = Query::query([
                 'INSERT IGNORE INTO `uc__user_to_ff_character` (`user_id`, `character_id`) VALUES (:user_id, :character_id);', [':user_id' => $_SESSION['user_id'], ':character_id' => $this->id],
-                'INSERT IGNORE INTO `uc__user_to_group` (`user_id`, `group_id`) VALUES (:user_id, :group_id);', [':user_id' => $_SESSION['user_id'], ':group_id' => [Config::groupsIDs['Linked to FF'], 'int']],
+                'INSERT IGNORE INTO `uc__user_to_group` (`user_id`, `group_id`) VALUES (:user_id, :group_id);', [':user_id' => $_SESSION['user_id'], ':group_id' => [Config::GROUP_IDS['Linked to FF'], 'int']],
             ]);
             Security::log('User details change', 'Attempted to link FFXIV character', ['id' => $this->id, 'result' => $result]);
             #Download avatar

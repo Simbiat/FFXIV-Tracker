@@ -13,8 +13,8 @@ use Simbiat\Website\Errors;
 class Linkshell extends AbstractTrackerEntity
 {
     #Custom properties
-    protected const string entityType = 'linkshell';
-    protected const bool crossworld = false;
+    protected const string ENTITY_TYPE = 'linkshell';
+    protected const bool CROSSWORLD = false;
     public array $dates = [];
     public ?string $community = null;
     public ?string $server = null;
@@ -77,9 +77,9 @@ class Linkshell extends AbstractTrackerEntity
             }
             if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]) || !isset($data['linkshells'][$this->id]['pageTotal']) || $data['linkshells'][$this->id]['pageTotal'] !== 0) {
                 if (empty($Lodestone->getLastError())) {
-                    return 'Failed to get any data for '.($this::crossworld ? 'Crossworld ' : '').'Linkshell '.$this->id;
+                    return 'Failed to get any data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id;
                 }
-                return 'Failed to get all necessary data for '.($this::crossworld ? 'Crossworld ' : '').'Linkshell '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
+                return 'Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
             }
             #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
             $data['linkshells'][$this->id]['empty'] = true;
@@ -109,7 +109,7 @@ class Linkshell extends AbstractTrackerEntity
         ];
         $this->oldNames = $fromDB['oldNames'];
         $this->members = $fromDB['members'];
-        if ($this::crossworld) {
+        if ($this::CROSSWORLD) {
             $this->data_center = $fromDB['data_center'];
         } else {
             $this->server = $fromDB['server'];
@@ -131,7 +131,7 @@ class Linkshell extends AbstractTrackerEntity
                     [
                         ':ls_id' => $this->id,
                         ':name' => $this->lodestone['name'],
-                        ':crossworld' => [$this::crossworld, 'bool'],
+                        ':crossworld' => [$this::CROSSWORLD, 'bool'],
                         ':formed' => [
                             (empty($this->lodestone['formed']) ? null : $this->lodestone['formed']),
                             (empty($this->lodestone['formed']) ? 'null' : 'date'),
@@ -146,7 +146,7 @@ class Linkshell extends AbstractTrackerEntity
                         ':ls_id' => $this->id,
                         ':server' => $this->lodestone['server'] ?? $this->lodestone['data_center'],
                         ':name' => $this->lodestone['name'],
-                        ':crossworld' => [$this::crossworld, 'bool'],
+                        ':crossworld' => [$this::CROSSWORLD, 'bool'],
                         ':formed' => [
                             (empty($this->lodestone['formed']) ? null : $this->lodestone['formed']),
                             (empty($this->lodestone['formed']) ? 'null' : 'date'),
