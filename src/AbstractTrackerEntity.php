@@ -415,7 +415,7 @@ abstract class AbstractTrackerEntity
             $fullPath = mb_substr($crestHash, 0, 2, 'UTF-8').'/'.mb_substr($crestHash, 2, 2, 'UTF-8').'/'.$crestHash.'.webp';
             #Generate an image file, if missing
             if (!is_file(Config::$mergedCrestsCache.$fullPath)) {
-                self::CrestMerge($images, Config::$mergedCrestsCache.$fullPath);
+                self::crestMerge($images, Config::$mergedCrestsCache.$fullPath);
             }
             return '/assets/images/fftracker/merged-crests/'.$fullPath;
         }
@@ -483,7 +483,7 @@ abstract class AbstractTrackerEntity
      *
      * @return bool
      **/
-    protected static function CrestMerge(array $images, string $finalPath, bool $debug = false): bool
+    protected static function crestMerge(array $images, string $finalPath, bool $debug = false): bool
     {
         try {
             #Don't do anything if an empty array
