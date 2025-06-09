@@ -105,22 +105,22 @@ class Achievement extends AbstractTrackerEntity
     
     /**
      * Helper function to get db_id from Lodestone based on the achievement name
-     * @param string $searchFor
+     * @param string $search_for
      *
      * @return string|null
      */
-    private function getDBID(string $searchFor): string|null
+    private function getDBID(string $search_for): string|null
     {
-        $dbSearchResult = new Lodestone()->searchDatabase('achievement', 0, 0, $searchFor)->getResult();
+        $db_search_result = new Lodestone()->searchDatabase('achievement', 0, 0, $search_for)->getResult();
         #Remove counts elements from achievement database
-        unset($dbSearchResult['database']['achievement']['pageCurrent'], $dbSearchResult['database']['achievement']['pageTotal'], $dbSearchResult['database']['achievement']['total']);
-        if (empty($dbSearchResult)) {
+        unset($db_search_result['database']['achievement']['pageCurrent'], $db_search_result['database']['achievement']['pageTotal'], $db_search_result['database']['achievement']['total']);
+        if (empty($db_search_result)) {
             return null;
         }
         #Flip the array of achievements (if any) to ease searching for the right element
-        $dbSearchResult['database']['achievement'] = array_flip(array_combine(array_keys($dbSearchResult['database']['achievement']), array_column($dbSearchResult['database']['achievement'], 'name')));
-        if (!empty($dbSearchResult['database']['achievement'][$searchFor])) {
-            return $dbSearchResult['database']['achievement'][$searchFor];
+        $db_search_result['database']['achievement'] = array_flip(array_combine(array_keys($db_search_result['database']['achievement']), array_column($db_search_result['database']['achievement'], 'name')));
+        if (!empty($db_search_result['database']['achievement'][$search_for])) {
+            return $db_search_result['database']['achievement'][$search_for];
         }
         return null;
     }
