@@ -349,6 +349,9 @@ abstract class AbstractTrackerEntity
     {
         foreach ($images as $key => $image) {
             if (!empty($image)) {
+                #S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
+                #This was fixed by SE at some point, but now it's broken again, so we change the URL ourselves
+                $image = preg_replace('/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png', $image);
                 #Check if we have already downloaded the component image and use that one to speed up the process
                 if ($key === 0) {
                     #If it's background, we need to check if a subdirectory exists and create it, and create it if it does not
