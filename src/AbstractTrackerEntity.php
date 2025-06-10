@@ -215,8 +215,8 @@ abstract class AbstractTrackerEntity
         if ($_SESSION['user_id'] === 1) {
             return ['http_error' => 403, 'reason' => 'Authentication required'];
         }
-        if (empty(array_intersect(['refreshOwnedFF', 'refreshAllFF'], $_SESSION['permissions']))) {
-            return ['http_error' => 403, 'reason' => 'No `'.implode('` or `', ['refreshOwnedFF', 'refreshAllFF']).'` permission'];
+        if (empty(array_intersect(['refresh_owned_ff', 'refresh_all_ff'], $_SESSION['permissions']))) {
+            return ['http_error' => 403, 'reason' => 'No `'.implode('` or `', ['refresh_owned_ff', 'refresh_all_ff']).'` permission'];
         }
         $id_column = match ($this::ENTITY_TYPE) {
             'character' => 'character_id',
