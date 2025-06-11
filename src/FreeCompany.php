@@ -67,24 +67,24 @@ class FreeCompany extends AbstractTrackerEntity
      */
     public function getFromLodestone(bool $allowSleep = false): string|array
     {
-        $Lodestone = new Lodestone();
-        $data = $Lodestone->getFreeCompany($this->id)->getFreeCompanyMembers($this->id, 0)->getResult();
+        $lodestone = new Lodestone();
+        $data = $lodestone->getFreeCompany($this->id)->getFreeCompanyMembers($this->id, 0)->getResult();
         if (empty($data['freecompanies'][$this->id]['server']) || (empty($data['freecompanies'][$this->id]['members']) && (int)($data['freecompanies'][$this->id]['members_count'] ?? 0) > 0) || (!empty($data['freecompanies'][$this->id]['members']) && count($data['freecompanies'][$this->id]['members']) < (int)($data['freecompanies'][$this->id]['members_count'] ?? 0))) {
             if (!empty($data['freecompanies'][$this->id]) && (int)$data['freecompanies'][$this->id] === 404) {
                 $this->delete();
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($Lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $Lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allowSleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (empty($Lodestone->getLastError())) {
+            if (empty($lodestone->getLastError())) {
                 return 'Failed to get any data for Free Company '.$this->id;
             }
-            return 'Failed to get all necessary data for Free Company '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
+            return 'Failed to get all necessary data for Free Company '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
         }
         if (empty($data['freecompanies'][$this->id]['crest'][2]) && !empty($data['freecompanies'][$this->id]['crest'][1])) {
             $data['freecompanies'][$this->id]['crest'][2] = $data['freecompanies'][$this->id]['crest'][1];

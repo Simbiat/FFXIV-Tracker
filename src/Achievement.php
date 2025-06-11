@@ -63,14 +63,14 @@ class Achievement extends AbstractTrackerEntity
             return ['404' => true, 'reason' => 'Achievement with ID `'.$this->id.'` is not found on Tracker'];
         }
         #Cache Lodestone
-        $Lodestone = new Lodestone();
+        $lodestone = new Lodestone();
         #If we do not have db_id already - try to get one
         if (empty($achievement['db_id'])) {
             $achievement['db_id'] = $this->getDBID($achievement['name']);
         }
         #Somewhat simpler and faster processing if we have db_id already
         if (!empty($achievement['db_id'])) {
-            $data = $Lodestone->getAchievementFromDB($achievement['db_id'])->getResult();
+            $data = $lodestone->getAchievementFromDB($achievement['db_id'])->getResult();
             $data = $data['database']['achievement'][$achievement['db_id']];
             unset($data['time']);
             $data['db_id'] = $achievement['db_id'];
@@ -82,9 +82,9 @@ class Achievement extends AbstractTrackerEntity
         }
         #Iterrate list
         foreach ($achievement['characters'] as $char) {
-            $data = $Lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
+            $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($Lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $Lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allowSleep) {
                     sleep(60);
                 }

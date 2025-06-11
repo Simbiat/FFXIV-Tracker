@@ -61,25 +61,25 @@ class Linkshell extends AbstractTrackerEntity
      */
     public function getFromLodestone(bool $allowSleep = false): string|array
     {
-        $Lodestone = (new Lodestone());
-        $data = $Lodestone->getLinkshellMembers($this->id, 0)->getResult();
+        $lodestone = (new Lodestone());
+        $data = $lodestone->getLinkshellMembers($this->id, 0)->getResult();
         if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]['server']) || (empty($data['linkshells'][$this->id]['members']) && (int)$data['linkshells'][$this->id]['membersCount'] > 0) || (!empty($data['linkshells'][$this->id]['members']) && \count($data['linkshells'][$this->id]['members']) < (int)$data['linkshells'][$this->id]['membersCount'])) {
             if (!empty($data['linkshells'][$this->id]['members']) && $data['linkshells'][$this->id]['members'] === 404) {
                 $this->delete();
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($Lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $Lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allowSleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
             if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]) || !isset($data['linkshells'][$this->id]['pageTotal']) || $data['linkshells'][$this->id]['pageTotal'] !== 0) {
-                if (empty($Lodestone->getLastError())) {
+                if (empty($lodestone->getLastError())) {
                     return 'Failed to get any data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id;
                 }
-                return 'Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
+                return 'Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
             }
             #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
             $data['linkshells'][$this->id]['empty'] = true;

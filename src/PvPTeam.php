@@ -55,24 +55,24 @@ class PvPTeam extends AbstractTrackerEntity
      */
     public function getFromLodestone(bool $allowSleep = false): string|array
     {
-        $Lodestone = new Lodestone();
-        $data = $Lodestone->getPvPTeam($this->id)->getResult();
+        $lodestone = new Lodestone();
+        $data = $lodestone->getPvPTeam($this->id)->getResult();
         if (empty($data['pvpteams'][$this->id]['data_center']) || empty($data['pvpteams'][$this->id]['members'])) {
             if (!empty($data['pvpteams'][$this->id]['members']) && (int)$data['pvpteams'][$this->id]['members'] === 404) {
                 $this->delete();
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($Lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $Lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allowSleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (empty($Lodestone->getLastError())) {
+            if (empty($lodestone->getLastError())) {
                 return 'Failed to get any data for PvP Team '.$this->id;
             }
-            return 'Failed to get all necessary data for PvP Team '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
+            return 'Failed to get all necessary data for PvP Team '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
         }
         if (empty($data['pvpteams'][$this->id]['crest'][2]) && !empty($data['pvpteams'][$this->id]['crest'][1])) {
             $data['pvpteams'][$this->id]['crest'][2] = $data['pvpteams'][$this->id]['crest'][1];

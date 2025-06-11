@@ -96,8 +96,8 @@ class Character extends AbstractTrackerEntity
      */
     public function getFromLodestone(bool $allowSleep = false): string|array
     {
-        $Lodestone = (new Lodestone());
-        $data = $Lodestone->getCharacter($this->id)->getCharacterJobs($this->id)->getResult();
+        $lodestone = (new Lodestone());
+        $data = $lodestone->getCharacter($this->id)->getCharacterJobs($this->id)->getResult();
         #Check if the character is private
         if (isset($data['characters'][$this->id]['private']) && $data['characters'][$this->id]['private'] === true) {
             $this->markPrivate();
@@ -110,19 +110,19 @@ class Character extends AbstractTrackerEntity
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($Lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $Lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allowSleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (empty($Lodestone->getLastError())) {
+            if (empty($lodestone->getLastError())) {
                 return 'Failed to get any data for Character '.$this->id;
             }
-            return 'Failed to get all necessary data for Character '.$this->id.' ('.$Lodestone->getLastError()['url'].'): '.$Lodestone->getLastError()['error'];
+            return 'Failed to get all necessary data for Character '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
         }
         #Try to get achievements now, that we got basic information, and there were no issues with it.
-        $data = $Lodestone->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
+        $data = $lodestone->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
         $data = $data['characters'][$this->id];
         $data['id'] = $this->id;
         $data['404'] = false;
