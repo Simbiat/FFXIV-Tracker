@@ -345,25 +345,25 @@ abstract class AbstractTrackerEntity
      *
      * @return void
      */
-    protected function downloadCrestComponents(array $images): void
+    public function downloadCrestComponents(array $images): void
     {
         foreach ($images as $key => $image) {
             if (!empty($image)) {
-                #S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
+                #Emblem S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
                 #This was fixed by SE at some point, but now it's broken again, so we change the URL ourselves
-                $image = preg_replace('/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png', $image);
+                $url_to_download = preg_replace('/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png', $image);
                 #Check if we have already downloaded the component image and use that one to speed up the process
                 if ($key === 0) {
                     #If it's background, we need to check if a subdirectory exists and create it, and create it if it does not
-                    $subDir = mb_strtolower(mb_substr(basename($image), 0, 3, 'UTF-8'), 'UTF-8');
-                    $concurrentDirectory = Config::$crestsComponents.'backgrounds/'.$subDir;
+                    $subDir = mb_substr(basename($image), 0, 3, 'UTF-8');
+                    $concurrentDirectory = Config::$crests_components.'backgrounds/'.$subDir;
                     if (!is_dir($concurrentDirectory) && !mkdir($concurrentDirectory) && !is_dir($concurrentDirectory)) {
                         throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
                     }
                 } elseif ($key === 2) {
                     #If it's an emblem, we need to check if a subdirectory exists and create it, and create it if it does not
-                    $subDir = mb_strtolower(mb_substr(basename($image), 0, 3, 'UTF-8'), 'UTF-8');
-                    $concurrentDirectory = Config::$crestsComponents.'emblems/'.$subDir;
+                    $subDir = mb_substr(basename($image), 0, 3, 'UTF-8');
+                    $concurrentDirectory = Config::$crests_components.'emblems/'.$subDir;
                     if (!is_dir($concurrentDirectory) && !mkdir($concurrentDirectory) && !is_dir($concurrentDirectory)) {
                         throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
                     }
@@ -374,14 +374,14 @@ abstract class AbstractTrackerEntity
                 if (!empty($cachedImage)) {
                     #Try downloading the component if it's not present locally
                     if (!is_file($cachedImage)) {
-                        Images::download($image, $cachedImage, false);
+                        Images::download($url_to_download, $cachedImage, false);
                     }
                     #If it's an emblem, check that other emblem variants are downloaded as well
                     if ($key === 2) {
                         $emblemIndex = (int)preg_replace('/(.+_)(\d{2})(_.+\.png)/', '$2', basename($image));
                         for ($i = 0; $i <= 7; $i++) {
                             if ($i !== $emblemIndex) {
-                                $emblemFile = Config::$crestsComponents.'emblems/'.$subDir.'/'.preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$i.'$3', basename($image));
+                                $emblemFile = Config::$crests_components.'emblems/'.$subDir.'/'.preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$i.'$3', basename($image));
                                 if (!is_file($emblemFile)) {
                                     #We generate the link to download an emblem
                                     #In addition S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
@@ -417,8 +417,8 @@ abstract class AbstractTrackerEntity
             #Get a full path
             $fullPath = mb_substr($crestHash, 0, 2, 'UTF-8').'/'.mb_substr($crestHash, 2, 2, 'UTF-8').'/'.$crestHash.'.webp';
             #Generate an image file, if missing
-            if (!is_file(Config::$mergedCrestsCache.$fullPath)) {
-                self::crestMerge($images, Config::$mergedCrestsCache.$fullPath);
+            if (!is_file(Config::$merged_crests_cache.$fullPath)) {
+                self::crestMerge($images, Config::$merged_crests_cache.$fullPath);
             }
             return '/assets/images/fftracker/merged-crests/'.$fullPath;
         }
@@ -436,15 +436,15 @@ abstract class AbstractTrackerEntity
         $filename = basename($image);
         #Backgrounds
         if (str_starts_with($filename, 'F00') || str_starts_with($filename, 'B')) {
-            return Config::$crestsComponents.'backgrounds/'.mb_strtolower(mb_substr($filename, 0, 3, 'UTF-8'), 'UTF-8').'/'.$filename;
+            return Config::$crests_components.'backgrounds/'.mb_substr($filename, 0, 3, 'UTF-8').'/'.$filename;
         }
         #Frames
         if (str_starts_with($filename, 'F')) {
-            return Config::$crestsComponents.'frames/'.$filename;
+            return Config::$crests_components.'frames/'.$filename;
         }
         #Emblems
         if (str_starts_with($filename, 'S')) {
-            return Config::$crestsComponents.'emblems/'.mb_strtolower(mb_substr($filename, 0, 3, 'UTF-8'), 'UTF-8').'/'.$filename;
+            return Config::$crests_components.'emblems/'.mb_substr($filename, 0, 3, 'UTF-8').'/'.$filename;
         }
         Errors::error_log(new \UnexpectedValueException('Unexpected crest component URL `'.$image.'`'));
         return null;
