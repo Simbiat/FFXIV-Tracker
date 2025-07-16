@@ -14,12 +14,12 @@ class PvPTeam extends AbstractTrackerEntity
 {
     #Custom properties
     protected const string ENTITY_TYPE = 'pvpteam';
-    protected string $idFormat = '/^[a-z\d]{40}$/m';
+    protected string $id_format = '/^[a-z\d]{40}$/m';
     public array $dates = [];
     public ?string $community = null;
     public array $crest = [];
     public string $data_center;
-    public array $oldNames = [];
+    public array $old_names = [];
     public array $members = [];
     
     /**
@@ -35,25 +35,26 @@ class PvPTeam extends AbstractTrackerEntity
             return [];
         }
         #Get old names
-        $data['oldNames'] = Query::query('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvp_id`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
+        $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvp_id`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
         $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`character_id` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvp_rank_id`, `user_id` FROM `ffxiv__pvpteam_character` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`ffxiv__pvpteam_character`.`character_id` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvp_rank_id`=`ffxiv__pvpteam_character`.`rank_id` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`character_id`=`ffxiv__character`.`character_id` WHERE `ffxiv__pvpteam_character`.`pvp_id`=:id AND `current`=1 ORDER BY `ffxiv__pvpteam_character`.`rank_id` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
         unset($data['data_center_id'], $data['server_id'], $data['server']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['UA']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
-            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->id, 'priority' => 1])->add();
+        if (empty($_SESSION['useragent']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
+            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
     }
     
     /**
      * Get PvP team data from Lodestone
-     * @param bool $allowSleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
+     *
+     * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
      *
      * @return string|array
      */
-    public function getFromLodestone(bool $allowSleep = false): string|array
+    public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = new Lodestone();
         $data = $lodestone->getPvPTeam($this->id)->getResult();
@@ -64,7 +65,7 @@ class PvPTeam extends AbstractTrackerEntity
             }
             #Take a pause if we were throttled, and pause is allowed
             if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
-                if ($allowSleep) {
+                if ($allow_sleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
@@ -81,34 +82,35 @@ class PvPTeam extends AbstractTrackerEntity
         $data = $data['pvpteams'][$this->id];
         $data['id'] = $this->id;
         $data['404'] = false;
-        unset($data['pageCurrent'], $data['pageTotal']);
+        unset($data['page_current'], $data['page_total']);
         return $data;
     }
     
     /**
      * Process data from DB
-     * @param array $fromDB
+     *
+     * @param array $from_db
      *
      * @return void
      */
-    protected function process(array $fromDB): void
+    protected function process(array $from_db): void
     {
-        $this->name = $fromDB['name'];
+        $this->name = $from_db['name'];
         $this->dates = [
-            'formed' => (empty($fromDB['formed']) ? null : strtotime($fromDB['formed'])),
-            'registered' => strtotime($fromDB['registered']),
-            'updated' => strtotime($fromDB['updated']),
-            'deleted' => (empty($fromDB['deleted']) ? null : strtotime($fromDB['deleted'])),
+            'formed' => (empty($from_db['formed']) ? null : strtotime($from_db['formed'])),
+            'registered' => strtotime($from_db['registered']),
+            'updated' => strtotime($from_db['updated']),
+            'deleted' => (empty($from_db['deleted']) ? null : strtotime($from_db['deleted'])),
         ];
-        $this->community = $fromDB['community_id'];
+        $this->community = $from_db['community_id'];
         $this->crest = [
-            0 => $fromDB['crest_part_1'],
-            1 => $fromDB['crest_part_2'],
-            2 => $fromDB['crest_part_3'],
+            0 => $from_db['crest_part_1'],
+            1 => $from_db['crest_part_2'],
+            2 => $from_db['crest_part_3'],
         ];
-        $this->data_center = $fromDB['data_center'];
-        $this->oldNames = $fromDB['oldNames'];
-        $this->members = $fromDB['members'];
+        $this->data_center = $from_db['data_center'];
+        $this->old_names = $from_db['old_names'];
+        $this->members = $from_db['members'];
         foreach ($this->members as $key => $member) {
             $this->members[$key]['matches'] = (int)$member['matches'];
         }
@@ -159,9 +161,9 @@ class PvPTeam extends AbstractTrackerEntity
                 ],
             ];
             #Get members as registered on the tracker
-            $trackMembers = Query::query('SELECT `character_id` FROM `ffxiv__pvpteam_character` WHERE `pvp_id`=:pvp_id AND `current`=1;', [':pvp_id' => $this->id], return: 'column');
+            $track_members = Query::query('SELECT `character_id` FROM `ffxiv__pvpteam_character` WHERE `pvp_id`=:pvp_id AND `current`=1;', [':pvp_id' => $this->id], return: 'column');
             #Process members that left the team
-            foreach ($trackMembers as $member) {
+            foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
                 if (!isset($this->lodestone['members'][$member])) {
                     #Update status for the character

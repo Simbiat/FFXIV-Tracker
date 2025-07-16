@@ -28,7 +28,7 @@ class FreeCompany extends AbstractTrackerEntity
     public array $location = [];
     public array $focus = [];
     public array $seeking = [];
-    public array $oldNames = [];
+    public array $old_names = [];
     public array $ranking = [];
     public array $members = [];
     
@@ -45,27 +45,28 @@ class FreeCompany extends AbstractTrackerEntity
             return [];
         }
         #Get old names
-        $data['oldNames'] = Query::query('SELECT `name` FROM `ffxiv__freecompany_names` WHERE `fc_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
+        $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__freecompany_names` WHERE `fc_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
         $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__freecompany_character`.`character_id` AS `id`, `ffxiv__freecompany_rank`.`rank_id`, `rankname` AS `rank`, `name`, `ffxiv__character`.`avatar` AS `icon`, `user_id` FROM `ffxiv__freecompany_character`LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`ffxiv__freecompany_character`.`character_id` LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`rank_id`=`ffxiv__freecompany_character`.`rank_id` AND `ffxiv__freecompany_rank`.`fc_id`=`ffxiv__freecompany_character`.`fc_id` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id`=`ffxiv__freecompany_character`.`character_id` LEFT JOIN (SELECT `rank_id`, COUNT(*) AS `total` FROM `ffxiv__freecompany_character` WHERE `ffxiv__freecompany_character`.`fc_id`=:id GROUP BY `rank_id`) `ranklist` ON `ranklist`.`rank_id` = `ffxiv__freecompany_character`.`rank_id` WHERE `ffxiv__freecompany_character`.`fc_id`=:id AND `current`=1 ORDER BY `ranklist`.`total`, `ranklist`.`rank_id` , `ffxiv__character`.`name`;', [':id' => $this->id], return: 'all');
         #History of ranks. Ensuring that we get only the freshest 100 entries sorted from latest to newest
         $data['ranks_history'] = Query::query('SELECT `date`, `weekly`, `monthly`, `members` FROM `ffxiv__freecompany_ranking` WHERE `fc_id`=:id ORDER BY `date` DESC LIMIT 100;', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
-        unset($data['gc_id'], $data['estate_id'], $data['gc_icon'], $data['active_id'], $data['city_id'], $data['left'], $data['top'], $data['cityIcon']);
+        unset($data['gc_id'], $data['estate_id'], $data['gc_icon'], $data['active_id'], $data['city_id'], $data['left'], $data['top'], $data['city_icon']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['UA']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
-            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
+        if (empty($_SESSION['useragent']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
+            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
     }
     
     /**
      * Get data from Lodestone
-     * @param bool $allowSleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
+     *
+     * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
      *
      * @return string|array
      */
-    public function getFromLodestone(bool $allowSleep = false): string|array
+    public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = new Lodestone();
         $data = $lodestone->getFreeCompany($this->id)->getFreeCompanyMembers($this->id, 0)->getResult();
@@ -76,7 +77,7 @@ class FreeCompany extends AbstractTrackerEntity
             }
             #Take a pause if we were throttled, and pause is allowed
             if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
-                if ($allowSleep) {
+                if ($allow_sleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
@@ -98,65 +99,66 @@ class FreeCompany extends AbstractTrackerEntity
     
     /**
      * Function to process data from DB
-     * @param array $fromDB
+     *
+     * @param array $from_db
      *
      * @return void
      */
-    protected function process(array $fromDB): void
+    protected function process(array $from_db): void
     {
-        $this->name = $fromDB['name'];
+        $this->name = $from_db['name'];
         $this->dates = [
-            'formed' => strtotime($fromDB['formed']),
-            'registered' => strtotime($fromDB['registered']),
-            'updated' => strtotime($fromDB['updated']),
-            'deleted' => (empty($fromDB['deleted']) ? null : strtotime($fromDB['deleted'])),
+            'formed' => strtotime($from_db['formed']),
+            'registered' => strtotime($from_db['registered']),
+            'updated' => strtotime($from_db['updated']),
+            'deleted' => (empty($from_db['deleted']) ? null : strtotime($from_db['deleted'])),
         ];
         $this->location = [
-            'data_center' => $fromDB['data_center'],
-            'server' => $fromDB['server'],
+            'data_center' => $from_db['data_center'],
+            'server' => $from_db['server'],
             'estate' => [
-                'region' => $fromDB['region'],
-                'city' => $fromDB['city'],
-                'area' => $fromDB['area'],
-                'ward' => (int)$fromDB['ward'],
-                'plot' => (int)$fromDB['plot'],
-                'name' => $fromDB['estate_zone'],
-                'size' => (int)$fromDB['size'],
-                'message' => $fromDB['estate_message'],
+                'region' => $from_db['region'],
+                'city' => $from_db['city'],
+                'area' => $from_db['area'],
+                'ward' => (int)$from_db['ward'],
+                'plot' => (int)$from_db['plot'],
+                'name' => $from_db['estate_zone'],
+                'size' => (int)$from_db['size'],
+                'message' => $from_db['estate_message'],
             ],
         ];
-        $this->tag = $fromDB['tag'];
+        $this->tag = $from_db['tag'];
         $this->crest = [
-            0 => $fromDB['crest_part_1'],
-            1 => $fromDB['crest_part_2'],
-            2 => $fromDB['crest_part_3'],
+            0 => $from_db['crest_part_1'],
+            1 => $from_db['crest_part_2'],
+            2 => $from_db['crest_part_3'],
         ];
-        $this->rank = (int)$fromDB['rank'];
-        $this->slogan = $fromDB['slogan'];
-        $this->recruiting = (bool)$fromDB['recruitment'];
-        $this->community = $fromDB['community_id'];
-        $this->grand_company = $fromDB['gc_name'];
-        $this->active = $fromDB['active'];
+        $this->rank = (int)$from_db['rank'];
+        $this->slogan = $from_db['slogan'];
+        $this->recruiting = (bool)$from_db['recruitment'];
+        $this->community = $from_db['community_id'];
+        $this->grand_company = $from_db['gc_name'];
+        $this->active = $from_db['active'];
         $this->focus = [
-            'role-playing' => (bool)$fromDB['role_playing'],
-            'leveling' => (bool)$fromDB['leveling'],
-            'casual' => (bool)$fromDB['casual'],
-            'hardcore' => (bool)$fromDB['hardcore'],
-            'dungeons' => (bool)$fromDB['dungeons'],
-            'guildhests' => (bool)$fromDB['guildhests'],
-            'trials' => (bool)$fromDB['trials'],
-            'raids' => (bool)$fromDB['raids'],
-            'PvP' => (bool)$fromDB['pvp'],
+            'role-playing' => (bool)$from_db['role_playing'],
+            'leveling' => (bool)$from_db['leveling'],
+            'casual' => (bool)$from_db['casual'],
+            'hardcore' => (bool)$from_db['hardcore'],
+            'dungeons' => (bool)$from_db['dungeons'],
+            'guildhests' => (bool)$from_db['guildhests'],
+            'trials' => (bool)$from_db['trials'],
+            'raids' => (bool)$from_db['raids'],
+            'PvP' => (bool)$from_db['pvp'],
         ];
         $this->seeking = [
-            'tank' => (bool)$fromDB['tank'],
-            'healer' => (bool)$fromDB['healer'],
-            'DPS' => (bool)$fromDB['dps'],
-            'crafter' => (bool)$fromDB['crafter'],
-            'gatherer' => (bool)$fromDB['gatherer'],
+            'tank' => (bool)$from_db['tank'],
+            'healer' => (bool)$from_db['healer'],
+            'DPS' => (bool)$from_db['dps'],
+            'crafter' => (bool)$from_db['crafter'],
+            'gatherer' => (bool)$from_db['gatherer'],
         ];
-        $this->oldNames = $fromDB['oldNames'];
-        $this->ranking = $fromDB['ranks_history'];
+        $this->old_names = $from_db['old_names'];
+        $this->ranking = $from_db['ranks_history'];
         #Adjust types for ranking
         foreach ($this->ranking as $key => $rank) {
             $this->ranking[$key]['date'] = strtotime($rank['date']);
@@ -164,7 +166,7 @@ class FreeCompany extends AbstractTrackerEntity
             $this->ranking[$key]['monthly'] = (int)$rank['monthly'];
             $this->ranking[$key]['members'] = (int)$rank['members'];
         }
-        $this->members = $fromDB['members'];
+        $this->members = $from_db['members'];
     }
     
     /**
@@ -272,9 +274,9 @@ class FreeCompany extends AbstractTrackerEntity
                 ];
             }
             #Get members as registered on the tracker
-            $trackMembers = Query::query('SELECT `character_id` FROM `ffxiv__freecompany_character` WHERE `fc_id`=:fc_id AND `current`=1;', [':fc_id' => $this->id], return: 'column');
+            $track_members = Query::query('SELECT `character_id` FROM `ffxiv__freecompany_character` WHERE `fc_id`=:fc_id AND `current`=1;', [':fc_id' => $this->id], return: 'column');
             #Process members that left the company
-            foreach ($trackMembers as $member) {
+            foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
                 if (!isset($this->lodestone['members'][$member])) {
                     #Update status for the character
@@ -292,11 +294,11 @@ class FreeCompany extends AbstractTrackerEntity
                 foreach ($this->lodestone['members'] as $member => $details) {
                     #Register or update rank name
                     $queries[] = [
-                        'INSERT INTO `ffxiv__freecompany_rank` (`fc_id`, `rank_id`, `rankname`) VALUE (:fc_id, :rank_id, :rankName) ON DUPLICATE KEY UPDATE `rankname`=:rankName',
+                        'INSERT INTO `ffxiv__freecompany_rank` (`fc_id`, `rank_id`, `rankname`) VALUE (:fc_id, :rank_id, :rank_name) ON DUPLICATE KEY UPDATE `rankname`=:rankName',
                         [
                             ':fc_id' => $this->id,
                             ':rank_id' => $details['rank_id'],
-                            ':rankName' => (empty($details['rank']) ? '' : $details['rank']),
+                            ':rank_name' => (empty($details['rank']) ? '' : $details['rank']),
                         ],
                     ];
                     #Check if a member is registered on the tracker while saving the status for future use
@@ -337,8 +339,8 @@ class FreeCompany extends AbstractTrackerEntity
                 $this->charMassCron($this->lodestone['members']);
             }
             return true;
-        } catch (\Throwable $e) {
-            Errors::error_log($e, 'fc_id: '.$this->id);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, 'fc_id: '.$this->id);
             return false;
         }
     }
@@ -361,8 +363,8 @@ class FreeCompany extends AbstractTrackerEntity
                 [':id' => $this->id],
             ];
             return Query::query($queries);
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
             return false;
         }
     }

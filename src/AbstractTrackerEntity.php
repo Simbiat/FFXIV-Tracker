@@ -22,7 +22,7 @@ abstract class AbstractTrackerEntity
     #If ID was retrieved, this needs to not be null
     public ?string $id = null;
     #Format for IDs
-    protected string $idFormat = '/^\d+$/m';
+    protected string $id_format = '/^\d+$/m';
     #Debug flag
     protected bool $debug = false;
     protected const ENTITY_TYPE = 'character';
@@ -56,8 +56,8 @@ abstract class AbstractTrackerEntity
     {
         #Convert to string for consistency
         $id = (string)$id;
-        if (preg_match($this->idFormat, $id) !== 1) {
-            throw new \UnexpectedValueException('ID `'.$id.'` for entity `'.\get_class($this).'` has incorrect format.');
+        if (preg_match($this->id_format, $id) !== 1) {
+            throw new \UnexpectedValueException('ID `'.$id.'` for entity `'.get_class($this).'` has incorrect format.');
         }
         $this->id = $id;
         return $this;
@@ -84,9 +84,9 @@ abstract class AbstractTrackerEntity
             } else {
                 $this->process($result);
             }
-        } catch (\Throwable $e) {
-            $error = $e->getMessage().$e->getTraceAsString();
-            Errors::error_log($e);
+        } catch (\Throwable $exception) {
+            $error = $exception->getMessage().$exception->getTraceAsString();
+            Errors::error_log($exception);
             #Rethrow exception if using debug mode
             if ($this->debug) {
                 die('<pre>'.$error.'</pre>');
@@ -127,19 +127,19 @@ abstract class AbstractTrackerEntity
     
     /**
      * Get entity data from Lodestone
-     * @param bool $allowSleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
+     * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
      *
      * @return string|array
      */
-    abstract public function getFromLodestone(bool $allowSleep = false): string|array;
+    abstract public function getFromLodestone(bool $allow_sleep = false): string|array;
     
     /**
      * Function to do processing
-     * @param array $fromDB
+     * @param array $from_db
      *
      * @return void
      */
-    abstract protected function process(array $fromDB): void;
+    abstract protected function process(array $from_db): void;
     
     /**
      * Function to update the entity in DB
@@ -149,11 +149,11 @@ abstract class AbstractTrackerEntity
     
     /**
      * Update the entity
-     * @param bool $allowSleep Flag to allow sleep if Lodestone is throttling us
+     * @param bool $allow_sleep Flag to allow sleep if Lodestone is throttling us
      *
      * @return string|bool
      */
-    public function update(bool $allowSleep = false): string|bool
+    public function update(bool $allow_sleep = false): string|bool
     {
         #Check if ID was set
         if ($this->id === null) {
@@ -169,9 +169,9 @@ abstract class AbstractTrackerEntity
         #Check if we have not updated before
         try {
             $updated = Query::query('SELECT `updated` FROM `ffxiv__'.$this::ENTITY_TYPE.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'value');
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
-            return $e->getMessage()."\n".$e->getTraceAsString();
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
+            return $exception->getMessage()."\n".$exception->getTraceAsString();
         }
         #Check if it has not been updated recently (10 minutes, to protect from potential abuse)
         if (isset($updated) && (time() - strtotime($updated)) < 600) {
@@ -181,15 +181,15 @@ abstract class AbstractTrackerEntity
         #Try to get data from Lodestone, if not already taken
         if (!is_array($this->lodestone)) {
             try {
-                $tempLodestone = $this->getFromLodestone($allowSleep);
+                $temp_lodestone = $this->getFromLodestone($allow_sleep);
             } catch (\Throwable $exception) {
                 Errors::error_log($exception, 'Failed to get '.$this::ENTITY_TYPE.' with ID '.$this->id, debug: $this->debug);
                 return $exception->getMessage()."\r\n".$exception->getTraceAsString();
             }
-            if (!is_array($tempLodestone)) {
-                return $tempLodestone;
+            if (!is_array($temp_lodestone)) {
+                return $temp_lodestone;
             }
-            $this->lodestone = $tempLodestone;
+            $this->lodestone = $temp_lodestone;
         }
         #If we got 404, return true. If an entity is to be removed, it's done during getFromLodestone()
         if (isset($this->lodestone['404']) && $this->lodestone['404'] === true) {
@@ -241,8 +241,8 @@ abstract class AbstractTrackerEntity
                 }
             }
             return $this->update();
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
             return ['http_error' => 503, 'reason' => 'Failed to validate linkage'];
         }
     }
@@ -266,8 +266,8 @@ abstract class AbstractTrackerEntity
         };
         try {
             $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::ENTITY_TYPE.'` WHERE `'.$id_column.'` = :id', [':id' => $this->id], return: 'check');
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
             return 503;
         }
         if ($check) {
@@ -276,15 +276,15 @@ abstract class AbstractTrackerEntity
         }
         #Try to get data from Lodestone
         try {
-            $tempLodestone = $this->getFromLodestone();
+            $temp_lodestone = $this->getFromLodestone();
         } catch (\Throwable $exception) {
             Errors::error_log($exception, 'Failed to get '.$this::ENTITY_TYPE.' with ID '.$this->id, debug: $this->debug);
             return false;
         }
-        if (!is_array($tempLodestone)) {
+        if (!is_array($temp_lodestone)) {
             return 503;
         }
-        $this->lodestone = $tempLodestone;
+        $this->lodestone = $temp_lodestone;
         if (isset($this->lodestone['404']) && $this->lodestone['404'] === true) {
             return 404;
         }
@@ -294,7 +294,7 @@ abstract class AbstractTrackerEntity
         }
         #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
         #Since they lack some basic information, it's not possible to register them, so treat them as private
-        if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && \in_array($this::ENTITY_TYPE, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
+        if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && in_array($this::ENTITY_TYPE, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
             return 403;
         }
         unset($this->lodestone['404']);
@@ -316,7 +316,7 @@ abstract class AbstractTrackerEntity
                 if (!$details['registered']) {
                     #Priority is higher since they are missing a lot of data.
                     try {
-                        $cron->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$member, 'character'], 'message' => 'Updating character with ID '.$member, 'priority' => 2])->add();
+                        $cron->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$member, 'character'], 'message' => 'Updating character with ID '.$member, 'priority' => 2])->add();
                     } catch (\Throwable) {
                         #Do nothing, not considered critical
                     }
@@ -355,40 +355,40 @@ abstract class AbstractTrackerEntity
                 #Check if we have already downloaded the component image and use that one to speed up the process
                 if ($key === 0) {
                     #If it's background, we need to check if a subdirectory exists and create it, and create it if it does not
-                    $subDir = mb_substr(basename($image), 0, 3, 'UTF-8');
-                    $concurrentDirectory = Config::$crests_components.'backgrounds/'.$subDir;
-                    if (!is_dir($concurrentDirectory) && !mkdir($concurrentDirectory) && !is_dir($concurrentDirectory)) {
-                        throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
+                    $sub_dir = mb_substr(basename($image), 0, 3, 'UTF-8');
+                    $concurrent_directory = Config::$crests_components.'backgrounds/'.$sub_dir;
+                    if (!is_dir($concurrent_directory) && !mkdir($concurrent_directory) && !is_dir($concurrent_directory)) {
+                        throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrent_directory));
                     }
                 } elseif ($key === 2) {
                     #If it's an emblem, we need to check if a subdirectory exists and create it, and create it if it does not
-                    $subDir = mb_substr(basename($image), 0, 3, 'UTF-8');
-                    $concurrentDirectory = Config::$crests_components.'emblems/'.$subDir;
-                    if (!is_dir($concurrentDirectory) && !mkdir($concurrentDirectory) && !is_dir($concurrentDirectory)) {
-                        throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
+                    $sub_dir = mb_substr(basename($image), 0, 3, 'UTF-8');
+                    $concurrent_directory = Config::$crests_components.'emblems/'.$sub_dir;
+                    if (!is_dir($concurrent_directory) && !mkdir($concurrent_directory) && !is_dir($concurrent_directory)) {
+                        throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrent_directory));
                     }
                 } else {
-                    $subDir = '';
+                    $sub_dir = '';
                 }
-                $cachedImage = self::crestToLocal($image);
-                if (!empty($cachedImage)) {
+                $cached_image = self::crestToLocal($image);
+                if (!empty($cached_image)) {
                     #Try downloading the component if it's not present locally
-                    if (!is_file($cachedImage)) {
-                        Images::download($url_to_download, $cachedImage, false);
+                    if (!is_file($cached_image)) {
+                        Images::download($url_to_download, $cached_image, false);
                     }
                     #If it's an emblem, check that other emblem variants are downloaded as well
                     if ($key === 2) {
-                        $emblemIndex = (int)preg_replace('/(.+_)(\d{2})(_.+\.png)/', '$2', basename($image));
-                        for ($i = 0; $i <= 7; $i++) {
-                            if ($i !== $emblemIndex) {
-                                $emblemFile = Config::$crests_components.'emblems/'.$subDir.'/'.preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$i.'$3', basename($image));
-                                if (!is_file($emblemFile)) {
+                        $emblem_index = (int)preg_replace('/(.+_)(\d{2})(_.+\.png)/', '$2', basename($image));
+                        for ($iteration = 0; $iteration <= 7; $iteration++) {
+                            if ($iteration !== $emblem_index) {
+                                $emblem_file = Config::$crests_components.'emblems/'.$sub_dir.'/'.preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$iteration.'$3', basename($image));
+                                if (!is_file($emblem_file)) {
                                     #We generate the link to download an emblem
                                     #In addition S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
                                     #This was fixed by SE at some point, but now it's broken again, so we change the URL ourselves
-                                    $url_to_download = preg_replace(['/(.+_)(\d{2})(_.+\.png)/', '/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/'], ['${1}0'.$i.'$3', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png'], $image);
+                                    $url_to_download = preg_replace(['/(.+_)(\d{2})(_.+\.png)/', '/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/'], ['${1}0'.$iteration.'$3', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png'], $image);
                                     try {
-                                        Images::download($url_to_download, $emblemFile, false);
+                                        Images::download($url_to_download, $emblem_file, false);
                                     } catch (\Throwable) {
                                         #Do nothing, not critical
                                     }
@@ -410,17 +410,17 @@ abstract class AbstractTrackerEntity
     public static function crestToFavicon(array $images): ?string
     {
         $images = self::sortComponents($images);
-        $mergedFileNames = (empty($images[0]) ? '' : basename($images[0])).(empty($images[1]) ? '' : basename($images[1])).(empty($images[2]) ? '' : basename($images[2]));
+        $merged_filenames = (empty($images[0]) ? '' : basename($images[0])).(empty($images[1]) ? '' : basename($images[1])).(empty($images[2]) ? '' : basename($images[2]));
         #Get hash of the merged images based on their names
-        $crestHash = hash('sha3-512', $mergedFileNames);
-        if (!empty($crestHash)) {
+        $crest_hash = hash('sha3-512', $merged_filenames);
+        if (!empty($crest_hash)) {
             #Get a full path
-            $fullPath = mb_substr($crestHash, 0, 2, 'UTF-8').'/'.mb_substr($crestHash, 2, 2, 'UTF-8').'/'.$crestHash.'.webp';
+            $full_path = mb_substr($crest_hash, 0, 2, 'UTF-8').'/'.mb_substr($crest_hash, 2, 2, 'UTF-8').'/'.$crest_hash.'.webp';
             #Generate an image file, if missing
-            if (!is_file(Config::$merged_crests_cache.$fullPath)) {
-                self::crestMerge($images, Config::$merged_crests_cache.$fullPath);
+            if (!is_file(Config::$merged_crests_cache.$full_path)) {
+                self::crestMerge($images, Config::$merged_crests_cache.$full_path);
             }
-            return '/assets/images/fftracker/merged-crests/'.$fullPath;
+            return '/assets/images/fftracker/merged-crests/'.$full_path;
         }
         return '/assets/images/fftracker/merged-crests/not_found.webp';
     }
@@ -458,35 +458,35 @@ abstract class AbstractTrackerEntity
      */
     protected static function sortComponents(array $images): array
     {
-        $imagesToMerge = [];
+        $images_to_merge = [];
         foreach ($images as $image) {
             if (!empty($image)) {
-                $cachedImage = self::crestToLocal($image);
-                if ($cachedImage !== null) {
-                    if (str_contains($cachedImage, 'backgrounds')) {
-                        $imagesToMerge[0] = $cachedImage;
-                    } elseif (str_contains($cachedImage, 'frames')) {
-                        $imagesToMerge[1] = $cachedImage;
-                    } elseif (str_contains($cachedImage, 'emblems')) {
-                        $imagesToMerge[2] = $cachedImage;
+                $cached_image = self::crestToLocal($image);
+                if ($cached_image !== null) {
+                    if (str_contains($cached_image, 'backgrounds')) {
+                        $images_to_merge[0] = $cached_image;
+                    } elseif (str_contains($cached_image, 'frames')) {
+                        $images_to_merge[1] = $cached_image;
+                    } elseif (str_contains($cached_image, 'emblems')) {
+                        $images_to_merge[2] = $cached_image;
                     }
                 }
             }
         }
-        ksort($imagesToMerge);
-        return $imagesToMerge;
+        ksort($images_to_merge);
+        return $images_to_merge;
     }
     
     /**
      * Function to merge 1 to 3 images making up a crest on Lodestone into 1 stored on the tracker side
      *
-     * @param array  $images    Array of crest components
-     * @param string $finalPath Where to save the final file
-     * @param bool   $debug     Debug mode to log errors
+     * @param array  $images     Array of crest components
+     * @param string $final_path Where to save the final file
+     * @param bool   $debug      Debug mode to log errors
      *
      * @return bool
      **/
-    protected static function crestMerge(array $images, string $finalPath, bool $debug = false): bool
+    protected static function crestMerge(array $images, string $final_path, bool $debug = false): bool
     {
         try {
             #Don't do anything if an empty array
@@ -495,15 +495,15 @@ abstract class AbstractTrackerEntity
             }
             #Check if the path exists and create it recursively, if not
             /* @noinspection PhpUsageOfSilenceOperatorInspection */
-            if (!is_dir(dirname($finalPath)) && !@mkdir(dirname($finalPath), recursive: true) && !is_dir(dirname($finalPath))) {
-                throw new \RuntimeException(sprintf('Directory "%s" was not created', $finalPath));
+            if (!is_dir(dirname($final_path)) && !@mkdir(dirname($final_path), recursive: true) && !is_dir(dirname($final_path))) {
+                throw new \RuntimeException(sprintf('Directory "%s" was not created', $final_path));
             }
             $gd = Images::merge($images);
             #Save the file
-            return $gd !== null && imagewebp($gd, $finalPath, IMG_WEBP_LOSSLESS);
-        } catch (\Throwable $e) {
+            return $gd !== null && imagewebp($gd, $final_path, IMG_WEBP_LOSSLESS);
+        } catch (\Throwable $exception) {
             if ($debug) {
-                Errors::error_log($e, debug: $debug);
+                Errors::error_log($exception, debug: $debug);
             }
             return false;
         }
@@ -520,7 +520,7 @@ abstract class AbstractTrackerEntity
         foreach ($results as $key => $result) {
             if (isset($result['crest_part_1']) || isset($result['crest_part_2']) || isset($result['crest_part_3'])) {
                 $results[$key]['icon'] = self::crestToFavicon([$result['crest_part_1'], $result['crest_part_2'], $result['crest_part_3']]);
-                if (isset($result['gc_id']) && str_contains($results[$key]['icon'], 'not_found') && \in_array($result['gc_id'], [1, 2, 3], true)) {
+                if (isset($result['gc_id']) && str_contains($results[$key]['icon'], 'not_found') && in_array($result['gc_id'], [1, 2, 3], true)) {
                     $results[$key]['icon'] = $result['gc_id'];
                 }
             } else {

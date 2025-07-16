@@ -41,8 +41,8 @@ class Achievement extends AbstractTrackerEntity
         #Get last characters with this achievement
         $data['characters'] = Query::query('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`character_id` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id` = `ffxiv__character_achievement`.`character_id` WHERE `ffxiv__character_achievement`.`achievement_id` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id], return: 'all');
         #Register for an update if old enough or category or how_to or db_id are empty. Also check that this is not a bot.
-        if (empty($_SESSION['UA']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (time() - strtotime($data['updated'])) >= 31536000)) {
-            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
+        if (empty($_SESSION['useragent']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (time() - strtotime($data['updated'])) >= 31536000)) {
+            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
         }
         return $data;
     }
@@ -50,12 +50,12 @@ class Achievement extends AbstractTrackerEntity
     /**
      * Get data from Lodestone
      *
-     * @param bool $allowSleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
+     * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
      *
      * @return string|array
      * @throws \Exception
      */
-    public function getFromLodestone(bool $allowSleep = false): string|array
+    public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         #Get the data that we have
         $achievement = $this->getFromDB();
@@ -85,12 +85,12 @@ class Achievement extends AbstractTrackerEntity
             $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
             #Take a pause if we were throttled, and pause is allowed
             if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
-                if ($allowSleep) {
+                if ($allow_sleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && \is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
+            if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
                 #Try to get achievement ID as seen in Lodestone database (play guide)
                 $data['characters'][$char['id']]['achievements'][$this->id]['db_id'] = $this->getDBID($data['characters'][$char['id']]['achievements'][$this->id]['name']);
                 #Remove time
@@ -113,7 +113,7 @@ class Achievement extends AbstractTrackerEntity
     {
         $db_search_result = new Lodestone()->searchDatabase('achievement', 0, 0, $search_for)->getResult();
         #Remove counts elements from achievement database
-        unset($db_search_result['database']['achievement']['pageCurrent'], $db_search_result['database']['achievement']['pageTotal'], $db_search_result['database']['achievement']['total']);
+        unset($db_search_result['database']['achievement']['page_current'], $db_search_result['database']['achievement']['page_total'], $db_search_result['database']['achievement']['total']);
         if (empty($db_search_result)) {
             return null;
         }
@@ -127,32 +127,33 @@ class Achievement extends AbstractTrackerEntity
     
     /**
      * Function to do processing of DB data
-     * @param array $fromDB
+     *
+     * @param array $from_db
      *
      * @return void
      */
-    protected function process(array $fromDB): void
+    protected function process(array $from_db): void
     {
-        $this->name = $fromDB['name'];
-        $this->updated = strtotime($fromDB['updated']);
-        $this->registered = strtotime($fromDB['registered']);
-        $this->category = $fromDB['category'];
-        $this->subcategory = $fromDB['subcategory'];
-        $this->icon = $fromDB['icon'];
-        $this->how_to = $fromDB['how_to'];
-        $this->db_id = $fromDB['db_id'];
+        $this->name = $from_db['name'];
+        $this->updated = strtotime($from_db['updated']);
+        $this->registered = strtotime($from_db['registered']);
+        $this->category = $from_db['category'];
+        $this->subcategory = $from_db['subcategory'];
+        $this->icon = $from_db['icon'];
+        $this->how_to = $from_db['how_to'];
+        $this->db_id = $from_db['db_id'];
         $this->rewards = [
-            'points' => (int)$fromDB['points'],
-            'title' => $fromDB['title'],
+            'points' => (int)$from_db['points'],
+            'title' => $from_db['title'],
             'item' => [
-                'name' => $fromDB['item'],
-                'icon' => $fromDB['item_icon'],
-                'id' => $fromDB['item_id'],
+                'name' => $from_db['item'],
+                'icon' => $from_db['item_icon'],
+                'id' => $from_db['item_id'],
             ],
         ];
         $this->characters = [
-            'total' => (int)$fromDB['earned_by'],
-            'last' => $fromDB['characters'],
+            'total' => (int)$from_db['earned_by'],
+            'last' => $from_db['characters'],
         ];
     }
     

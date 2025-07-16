@@ -19,7 +19,7 @@ use function is_array;
 class Character extends AbstractTrackerEntity
 {
     #Custom properties
-    public ?string $avatarID = '';
+    public ?string $avatar_id = '';
     public array $dates = [];
     public array $biology = [];
     public array $location = [];
@@ -30,7 +30,7 @@ class Character extends AbstractTrackerEntity
     public array $groups = [];
     public array $jobs = [];
     public array $achievements = [];
-    public int $achievementPoints = 0;
+    public int $achievement_points = 0;
     public array $owned = [];
     
     /**
@@ -40,10 +40,10 @@ class Character extends AbstractTrackerEntity
     protected function getFromDB(): array
     {
         #Get general information. Using *, but add name, because otherwise Achievement name overrides Character name, and we do not want that
-        $data = Query::query('SELECT *, `ffxiv__character`.`character_id`, `ffxiv__achievement`.`icon` AS `titleIcon`, `ffxiv__character`.`name`, `ffxiv__character`.`registered`, `ffxiv__character`.`updated` FROM `ffxiv__character`LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`ffxiv__character`.`character_id` LEFT JOIN `ffxiv__clan` ON `ffxiv__character`.`clan_id` = `ffxiv__clan`.`clan_id` LEFT JOIN `ffxiv__guardian` ON `ffxiv__character`.`guardian_id` = `ffxiv__guardian`.`guardian_id` LEFT JOIN `ffxiv__nameday` ON `ffxiv__character`.`nameday_id` = `ffxiv__nameday`.`nameday_id` LEFT JOIN `ffxiv__city` ON `ffxiv__character`.`city_id` = `ffxiv__city`.`city_id` LEFT JOIN `ffxiv__server` ON `ffxiv__character`.`server_id` = `ffxiv__server`.`server_id` LEFT JOIN `ffxiv__grandcompany_rank` ON `ffxiv__character`.`gc_rank_id` = `ffxiv__grandcompany_rank`.`gc_rank_id` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__grandcompany_rank`.`gc_id` = `ffxiv__grandcompany`.`gc_id` LEFT JOIN `ffxiv__achievement` ON `ffxiv__character`.`title_id` = `ffxiv__achievement`.`achievement_id` WHERE `ffxiv__character`.`character_id` = :id;', [':id' => $this->id], return: 'row');
+        $data = Query::query('SELECT *, `ffxiv__character`.`character_id`, `ffxiv__achievement`.`icon` AS `title_icon`, `ffxiv__character`.`name`, `ffxiv__character`.`registered`, `ffxiv__character`.`updated` FROM `ffxiv__character`LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`ffxiv__character`.`character_id` LEFT JOIN `ffxiv__clan` ON `ffxiv__character`.`clan_id` = `ffxiv__clan`.`clan_id` LEFT JOIN `ffxiv__guardian` ON `ffxiv__character`.`guardian_id` = `ffxiv__guardian`.`guardian_id` LEFT JOIN `ffxiv__nameday` ON `ffxiv__character`.`nameday_id` = `ffxiv__nameday`.`nameday_id` LEFT JOIN `ffxiv__city` ON `ffxiv__character`.`city_id` = `ffxiv__city`.`city_id` LEFT JOIN `ffxiv__server` ON `ffxiv__character`.`server_id` = `ffxiv__server`.`server_id` LEFT JOIN `ffxiv__grandcompany_rank` ON `ffxiv__character`.`gc_rank_id` = `ffxiv__grandcompany_rank`.`gc_rank_id` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__grandcompany_rank`.`gc_id` = `ffxiv__grandcompany`.`gc_id` LEFT JOIN `ffxiv__achievement` ON `ffxiv__character`.`title_id` = `ffxiv__achievement`.`achievement_id` WHERE `ffxiv__character`.`character_id` = :id;', [':id' => $this->id], return: 'row');
         if (!empty($data['hidden'])) {
             foreach ($data as $key => $value) {
-                if (!\in_array($key, ['avatar', 'registered', 'updated', 'deleted', 'hidden', 'name'])) {
+                if (!in_array($key, ['avatar', 'registered', 'updated', 'deleted', 'hidden', 'name'])) {
                     unset($data[$key]);
                 }
             }
@@ -62,7 +62,7 @@ class Character extends AbstractTrackerEntity
         #Get jobs
         $data['jobs'] = Query::query('SELECT `name`, `level`, `last_change` FROM `ffxiv__character_jobs` LEFT JOIN `ffxiv__jobs` ON `ffxiv__character_jobs`.`job_id`=`ffxiv__jobs`.`job_id` WHERE `ffxiv__character_jobs`.`character_id`=:id ORDER BY `name`;', [':id' => $this->id], return: 'all');
         #Get old names. For now, returning only the count due to cases of bullying, when the old names are learnt. They are still being collected, though, for statistical purposes.
-        $data['oldNames'] = Query::query('SELECT `name` FROM `ffxiv__character_names` WHERE `character_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
+        $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__character_names` WHERE `character_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get previous known incarnations (combination of gender and race/clan)
         $data['incarnations'] = Query::query('SELECT `gender`, `ffxiv__clan`.`race`, `ffxiv__clan`.`clan` FROM `ffxiv__character_clans` LEFT JOIN `ffxiv__clan` ON `ffxiv__character_clans`.`clan_id` = `ffxiv__clan`.`clan_id` WHERE `ffxiv__character_clans`.`character_id`=:id AND (`ffxiv__character_clans`.`clan_id`!=:clan_id AND `ffxiv__character_clans`.`gender`!=:gender) ORDER BY `gender` , `race` , `clan` ', [':id' => $this->id, ':clan_id' => $data['clan_id'], ':gender' => $data['gender']], return: 'all');
         #Get old servers
@@ -82,19 +82,20 @@ class Character extends AbstractTrackerEntity
         #Clean up the data from unnecessary (technical) clutter
         unset($data['clan_id'], $data['nameday_id'], $data['achievement_id'], $data['category'], $data['subcategory'], $data['how_to'], $data['points'], $data['icon'], $data['item'], $data['item_icon'], $data['item_id'], $data['server_id']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['UA']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
-            new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->id, 'character'], 'message' => 'Updating character with ID '.$this->id, 'priority' => 1])->add();
+        if (empty($_SESSION['useragent']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
+            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'character'], 'message' => 'Updating character with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
     }
     
     /**
      * Get character data from Lodestone
-     * @param bool $allowSleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
+     *
+     * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
      *
      * @return string|array
      */
-    public function getFromLodestone(bool $allowSleep = false): string|array
+    public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = (new Lodestone());
         $data = $lodestone->getCharacter($this->id)->getCharacterJobs($this->id)->getResult();
@@ -111,7 +112,7 @@ class Character extends AbstractTrackerEntity
             }
             #Take a pause if we were throttled, and pause is allowed
             if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
-                if ($allowSleep) {
+                if ($allow_sleep) {
                     sleep(60);
                 }
                 return 'Request throttled by Lodestone';
@@ -131,65 +132,66 @@ class Character extends AbstractTrackerEntity
     
     /**
      * Function to process data from DB
-     * @param array $fromDB
+     *
+     * @param array $from_db
      *
      * @return void
      */
-    protected function process(array $fromDB): void
+    protected function process(array $from_db): void
     {
-        $this->name = $fromDB['name'];
-        $this->avatarID = $fromDB['avatar'];
+        $this->name = $from_db['name'];
+        $this->avatar_id = $from_db['avatar'];
         $this->dates = [
-            'registered' => strtotime($fromDB['registered']),
-            'updated' => strtotime($fromDB['updated']),
-            'hidden' => (empty($fromDB['hidden']) ? null : strtotime($fromDB['hidden'])),
-            'deleted' => (empty($fromDB['deleted']) ? null : strtotime($fromDB['deleted'])),
+            'registered' => strtotime($from_db['registered']),
+            'updated' => strtotime($from_db['updated']),
+            'hidden' => (empty($from_db['hidden']) ? null : strtotime($from_db['hidden'])),
+            'deleted' => (empty($from_db['deleted']) ? null : strtotime($from_db['deleted'])),
         ];
         $this->biology = [
-            'gender' => (int)($fromDB['gender'] ?? 0),
-            'race' => $fromDB['race'] ?? null,
-            'clan' => $fromDB['clan'] ?? null,
-            'nameday' => $fromDB['nameday'] ?? null,
-            'guardian' => $fromDB['guardian'] ?? null,
-            'guardian_id' => $fromDB['guardian_id'] ?? null,
-            'incarnations' => $fromDB['incarnations'] ?? null,
-            'oldNames' => $fromDB['oldNames'] ?? [],
+            'gender' => (int)($from_db['gender'] ?? 0),
+            'race' => $from_db['race'] ?? null,
+            'clan' => $from_db['clan'] ?? null,
+            'nameday' => $from_db['nameday'] ?? null,
+            'guardian' => $from_db['guardian'] ?? null,
+            'guardian_id' => $from_db['guardian_id'] ?? null,
+            'incarnations' => $from_db['incarnations'] ?? null,
+            'old_names' => $from_db['old_names'] ?? [],
         ];
         $this->location = [
-            'data_center' => $fromDB['data_center'] ?? null,
-            'server' => $fromDB['server'] ?? null,
-            'region' => $fromDB['region'] ?? null,
-            'city' => $fromDB['city'] ?? null,
-            'city_id' => $fromDB['city_id'] ?? null,
-            'previousServers' => $fromDB['servers'] ?? [],
+            'data_center' => $from_db['data_center'] ?? null,
+            'server' => $from_db['server'] ?? null,
+            'region' => $from_db['region'] ?? null,
+            'city' => $from_db['city'] ?? null,
+            'city_id' => $from_db['city_id'] ?? null,
+            'previous_servers' => $from_db['servers'] ?? [],
         ];
-        $this->biography = $fromDB['biography'] ?? null;
+        $this->biography = $from_db['biography'] ?? null;
         $this->title = [
-            'title' => $fromDB['title'] ?? null,
-            'icon' => $fromDB['titleIcon'] ?? null,
-            'id' => $fromDB['title_id'] ?? null,
+            'title' => $from_db['title'] ?? null,
+            'icon' => $from_db['title_icon'] ?? null,
+            'id' => $from_db['title_id'] ?? null,
         ];
         $this->grand_company = [
-            'name' => $fromDB['gc_name'] ?? null,
-            'rank' => $fromDB['gc_rank'] ?? null,
-            'gc_id' => $fromDB['gc_id'] ?? null,
-            'gc_rank_id' => $fromDB['gc_rank_id'] ?? null,
+            'name' => $from_db['gc_name'] ?? null,
+            'rank' => $from_db['gc_rank'] ?? null,
+            'gc_id' => $from_db['gc_id'] ?? null,
+            'gc_rank_id' => $from_db['gc_rank_id'] ?? null,
         ];
-        $this->pvp = (int)($fromDB['pvp_matches'] ?? 0);
-        $this->groups = $fromDB['groups'] ?? [];
+        $this->pvp = (int)($from_db['pvp_matches'] ?? 0);
+        $this->groups = $from_db['groups'] ?? [];
         $this->owned = [
-            'id' => $fromDB['user_id'] ?? null,
-            'name' => $fromDB['username'] ?? null
+            'id' => $from_db['user_id'] ?? null,
+            'name' => $from_db['username'] ?? null
         ];
         foreach ($this->groups as $key => $group) {
             $this->groups[$key]['current'] = (bool)$group['current'];
         }
-        $this->achievements = $fromDB['achievements'] ?? [];
+        $this->achievements = $from_db['achievements'] ?? [];
         foreach ($this->achievements as $key => $achievement) {
             $this->achievements[$key]['time'] = (empty($achievement['time']) ? null : strtotime($achievement['time']));
         }
-        $this->achievementPoints = $fromDB['achievement_points'] ?? 0;
-        $this->jobs = $fromDB['jobs'] ?? [];
+        $this->achievement_points = $from_db['achievement_points'] ?? 0;
+        $this->jobs = $from_db['jobs'] ?? [];
     }
     
     /**
@@ -218,20 +220,20 @@ class Character extends AbstractTrackerEntity
             #Insert Free Companies and PvP Team if they are not registered
             if ($this->lodestone['free_company']['id'] !== NULL && $this->lodestone['free_company']['registered'] === false) {
                 $queries[] = [
-                    'INSERT IGNORE INTO `ffxiv__freecompany` (`fc_id`, `name`, `server_id`, `updated`) VALUES (:fc_id, :fcName, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()));',
+                    'INSERT IGNORE INTO `ffxiv__freecompany` (`fc_id`, `name`, `server_id`, `updated`) VALUES (:fc_id, :fc_name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()));',
                     [
                         ':fc_id' => $this->lodestone['free_company']['id'],
-                        ':fcName' => $this->lodestone['free_company']['name'],
+                        ':fc_name' => $this->lodestone['free_company']['name'],
                         ':server' => $this->lodestone['server'],
                     ],
                 ];
             }
             if ($this->lodestone['pvp']['id'] !== NULL && $this->lodestone['pvp']['registered'] === false) {
                 $queries[] = [
-                    'INSERT IGNORE INTO `ffxiv__pvpteam` (`pvp_id`, `name`, `data_center_id`, `updated`) VALUES (:pvp_id, :pvpName, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()));',
+                    'INSERT IGNORE INTO `ffxiv__pvpteam` (`pvp_id`, `name`, `data_center_id`, `updated`) VALUES (:pvp_id, :pvp_name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()));',
                     [
                         ':pvp_id' => $this->lodestone['pvp']['id'],
-                        ':pvpName' => $this->lodestone['pvp']['name'],
+                        ':pvp_name' => $this->lodestone['pvp']['name'],
                         ':server' => $this->lodestone['server'],
                     ],
                 ];
@@ -242,10 +244,10 @@ class Character extends AbstractTrackerEntity
                 $this->lodestone['bio'] = null;
             }
             #Get total achievements points. Using foreach for speed
-            $achievementPoints = 0;
+            $achievement_points = 0;
             if (!empty($this->lodestone['achievements']) && is_array($this->lodestone['achievements'])) {
                 foreach ($this->lodestone['achievements'] as $item) {
-                    $achievementPoints += (int)$item['points'];
+                    $achievement_points += (int)$item['points'];
                 }
             }
             #Main query to insert or update a character
@@ -254,10 +256,10 @@ class Character extends AbstractTrackerEntity
                     `character_id`, `server_id`, `name`, `registered`, `updated`, `hidden`, `deleted`, `biography`, `title_id`, `avatar`, `clan_id`, `gender`, `nameday_id`, `guardian_id`, `city_id`, `gc_rank_id`, `pvp_matches`, `achievement_points`
                 )
                 VALUES (
-                    :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, UTC_DATE(), CURRENT_TIMESTAMP(), NULL, NULL, :biography, (SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), :avatar, (SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), :gender, (SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), (SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), (SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), 0, :achievementPoints
+                    :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, UTC_DATE(), CURRENT_TIMESTAMP(), NULL, NULL, :biography, (SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), :avatar, (SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), :gender, (SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), (SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), (SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), 0, :achievement_points
                 )
                 ON DUPLICATE KEY UPDATE
-                    `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `name`=:name, `updated`=CURRENT_TIMESTAMP(), `hidden`=NULL, `deleted`=NULL, `biography`=:biography, `title_id`=(SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), `avatar`=:avatar, `clan_id`=(SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), `gender`=:gender, `nameday_id`=(SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), `guardian_id`=(SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), `city_id`=(SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id`=(SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank` IS NOT NULL AND `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), `achievement_points`=:achievementPoints;',
+                    `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `name`=:name, `updated`=CURRENT_TIMESTAMP(), `hidden`=NULL, `deleted`=NULL, `biography`=:biography, `title_id`=(SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), `avatar`=:avatar, `clan_id`=(SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), `gender`=:gender, `nameday_id`=(SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), `guardian_id`=(SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), `city_id`=(SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id`=(SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank` IS NOT NULL AND `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), `achievement_points`=:achievement_points;',
                 [
                     ':character_id' => $this->id,
                     ':server' => $this->lodestone['server'],
@@ -274,7 +276,7 @@ class Character extends AbstractTrackerEntity
                     ':guardian' => $this->lodestone['guardian']['name'],
                     ':city' => $this->lodestone['city']['name'],
                     ':gcRank' => (empty($this->lodestone['grand_company']['rank']) ? '' : $this->lodestone['grand_company']['rank']),
-                    ':achievementPoints' => [$achievementPoints, 'int']
+                    ':achievement_points' => [$achievement_points, 'int']
                 ],
             ];
             #Update levels. Doing this in a cycle since columns can vary. This can reduce performance, but so far this is the best idea I have to make it as automated as possible
@@ -377,11 +379,11 @@ class Character extends AbstractTrackerEntity
             }
             #Register the Free Company update if a change was detected
             if (!empty($this->lodestone['free_company']['id']) && !Query::query('SELECT `character_id` FROM `ffxiv__freecompany_character` WHERE `character_id`=:character_id AND `fc_id`=:fcID;', [':character_id' => $this->id, ':fcID' => $this->lodestone['free_company']['id']], return: 'check') && new FreeCompany($this->lodestone['free_company']['id'])->update() !== true) {
-                new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->lodestone['free_company']['id'], 'freecompany'], 'message' => 'Updating free company with ID '.$this->lodestone['free_company']['id'], 'priority' => 1])->add();
+                new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->lodestone['free_company']['id'], 'freecompany'], 'message' => 'Updating free company with ID '.$this->lodestone['free_company']['id'], 'priority' => 1])->add();
             }
             #Register PvP Team update if a change was detected
             if (!empty($this->lodestone['pvp']['id']) && !Query::query('SELECT `character_id` FROM `ffxiv__pvpteam_character` WHERE `character_id`=:character_id AND `pvp_id`=:pvpID;', [':character_id' => $this->id, ':pvpID' => $this->lodestone['pvp']['id']], return: 'check') && new PvPTeam($this->lodestone['pvp']['id'])->update() !== true) {
-                new TaskInstance()->settingsFromArray(['task' => 'ffUpdateEntity', 'arguments' => [(string)$this->lodestone['pvp']['id'], 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->lodestone['pvp']['id'], 'priority' => 1])->add();
+                new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->lodestone['pvp']['id'], 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->lodestone['pvp']['id'], 'priority' => 1])->add();
             }
             #Check if a character is linked to a user
             $character = Query::query('SELECT `character_id`, `user_id` FROM `uc__user_to_ff_character` WHERE `character_id`=:id;', [':id' => $this->id], return: 'row');
@@ -390,8 +392,8 @@ class Character extends AbstractTrackerEntity
                 new User($character['user_id'])->addAvatar(false, $this->lodestone['avatar'], (int)$this->id);
             }
             return true;
-        } catch (\Throwable $e) {
-            Errors::error_log($e, 'character_id: '.$this->id);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, 'character_id: '.$this->id);
             return false;
         }
     }
@@ -425,8 +427,8 @@ class Character extends AbstractTrackerEntity
             #Also try cleaning achievements, but it does not matter much if it fails
             $this->cleanAchievements();
             return $result;
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
             return false;
         }
     }
@@ -497,8 +499,8 @@ class Character extends AbstractTrackerEntity
             #Also try cleaning achievements, but it does not matter much if it fails
             $this->cleanAchievements();
             return $result;
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
             return false;
         }
     }
@@ -544,7 +546,7 @@ class Character extends AbstractTrackerEntity
             ]);
             Security::log('User details change', 'Attempted to link FFXIV character', ['id' => $this->id, 'result' => $result]);
             #Download avatar
-            new User($_SESSION['user_id'])->addAvatar(false, 'https://img2.finalfantasyxiv.com/f/'.$this->avatarID.'c0.jpg', $this->id);
+            new User($_SESSION['user_id'])->addAvatar(false, 'https://img2.finalfantasyxiv.com/f/'.$this->avatar_id.'c0.jpg', $this->id);
             return ['response' => $result];
         } catch (\Throwable $exception) {
             return ['http_error' => 500, 'reason' => $exception->getMessage()];
@@ -559,7 +561,7 @@ class Character extends AbstractTrackerEntity
     {
         try {
             #Get achievements to remove
-            $toRemove = Query::query(
+            $to_remove = Query::query(
             /** @lang MariaDB */ 'WITH `RankedAchievements` AS (
                         -- Rank achievements by time for character_id
                         SELECT
@@ -639,9 +641,9 @@ class Character extends AbstractTrackerEntity
                     ',
                 [':character_id' => $this->id], return: 'column'
             );
-            if (!empty($toRemove)) {
+            if (!empty($to_remove)) {
                 Query::query('DELETE FROM `ffxiv__character_achievement` WHERE `character_id`=:character_id AND `achievement_id` IN (:achievement_id);',
-                    [':character_id' => $this->id, ':achievement_id' => [$toRemove, 'in', 'int']],
+                    [':character_id' => $this->id, ':achievement_id' => [$to_remove, 'in', 'int']],
                 );
             }
         } catch (\Throwable $exception) {
