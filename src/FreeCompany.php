@@ -294,7 +294,7 @@ class FreeCompany extends AbstractTrackerEntity
                 foreach ($this->lodestone['members'] as $member => $details) {
                     #Register or update rank name
                     $queries[] = [
-                        'INSERT INTO `ffxiv__freecompany_rank` (`fc_id`, `rank_id`, `rankname`) VALUE (:fc_id, :rank_id, :rank_name) ON DUPLICATE KEY UPDATE `rankname`=:rankName',
+                        'INSERT INTO `ffxiv__freecompany_rank` (`fc_id`, `rank_id`, `rankname`) VALUE (:fc_id, :rank_id, :rank_name) ON DUPLICATE KEY UPDATE `rankname`=:rank_name',
                         [
                             ':fc_id' => $this->id,
                             ':rank_id' => $details['rank_id'],
