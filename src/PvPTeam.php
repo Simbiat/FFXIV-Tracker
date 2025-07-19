@@ -41,7 +41,7 @@ class PvPTeam extends AbstractTrackerEntity
         #Clean up the data from unnecessary (technical) clutter
         unset($data['data_center_id'], $data['server_id'], $data['server']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
+        if (empty($_SESSION['useragent']['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'pvpteam'], 'message' => 'Updating PvP team with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
@@ -64,9 +64,9 @@ class PvPTeam extends AbstractTrackerEntity
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allow_sleep) {
-                    sleep(60);
+                    \sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
@@ -97,10 +97,10 @@ class PvPTeam extends AbstractTrackerEntity
     {
         $this->name = $from_db['name'];
         $this->dates = [
-            'formed' => (empty($from_db['formed']) ? null : strtotime($from_db['formed'])),
-            'registered' => strtotime($from_db['registered']),
-            'updated' => strtotime($from_db['updated']),
-            'deleted' => (empty($from_db['deleted']) ? null : strtotime($from_db['deleted'])),
+            'formed' => (empty($from_db['formed']) ? null : \strtotime($from_db['formed'])),
+            'registered' => \strtotime($from_db['registered']),
+            'updated' => \strtotime($from_db['updated']),
+            'deleted' => (empty($from_db['deleted']) ? null : \strtotime($from_db['deleted'])),
         ];
         $this->community = $from_db['community_id'];
         $this->crest = [
@@ -194,7 +194,7 @@ class PvPTeam extends AbstractTrackerEntity
                                 ':character_id' => $member,
                                 ':server' => $details['server'],
                                 ':name' => $details['name'],
-                                ':avatar' => str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
+                                ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
                                 ':gcRank' => (empty($details['grand_company']['rank']) ? '' : $details['grand_company']['rank']),
                                 ':matches' => (empty($details['feasts']) ? 0 : $details['feasts']),
                             ]

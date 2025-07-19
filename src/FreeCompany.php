@@ -53,7 +53,7 @@ class FreeCompany extends AbstractTrackerEntity
         #Clean up the data from unnecessary (technical) clutter
         unset($data['gc_id'], $data['estate_id'], $data['gc_icon'], $data['active_id'], $data['city_id'], $data['left'], $data['top'], $data['city_icon']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
+        if (empty($_SESSION['useragent']['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
@@ -76,9 +76,9 @@ class FreeCompany extends AbstractTrackerEntity
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allow_sleep) {
-                    sleep(60);
+                    \sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
@@ -108,10 +108,10 @@ class FreeCompany extends AbstractTrackerEntity
     {
         $this->name = $from_db['name'];
         $this->dates = [
-            'formed' => strtotime($from_db['formed']),
-            'registered' => strtotime($from_db['registered']),
-            'updated' => strtotime($from_db['updated']),
-            'deleted' => (empty($from_db['deleted']) ? null : strtotime($from_db['deleted'])),
+            'formed' => \strtotime($from_db['formed']),
+            'registered' => \strtotime($from_db['registered']),
+            'updated' => \strtotime($from_db['updated']),
+            'deleted' => (empty($from_db['deleted']) ? null : \strtotime($from_db['deleted'])),
         ];
         $this->location = [
             'data_center' => $from_db['data_center'],
@@ -161,7 +161,7 @@ class FreeCompany extends AbstractTrackerEntity
         $this->ranking = $from_db['ranks_history'];
         #Adjust types for ranking
         foreach ($this->ranking as $key => $rank) {
-            $this->ranking[$key]['date'] = strtotime($rank['date']);
+            $this->ranking[$key]['date'] = \strtotime($rank['date']);
             $this->ranking[$key]['weekly'] = (int)$rank['weekly'];
             $this->ranking[$key]['monthly'] = (int)$rank['monthly'];
             $this->ranking[$key]['members'] = (int)$rank['members'];
@@ -220,7 +220,7 @@ class FreeCompany extends AbstractTrackerEntity
                         (empty($this->lodestone['active']) ? NULL : $this->lodestone['active']),
                         (empty($this->lodestone['active']) ? 'null' : 'string'),
                     ],
-                    ':recruitment' => (strcasecmp($this->lodestone['recruitment'], 'Open') === 0 ? 1 : 0),
+                    ':recruitment' => (\strcasecmp($this->lodestone['recruitment'], 'Open') === 0 ? 1 : 0),
                     ':estate_zone' => [
                         (empty($this->lodestone['estate']['name']) ? NULL : $this->lodestone['estate']['name']),
                         (empty($this->lodestone['estate']['name']) ? 'null' : 'string'),
@@ -233,20 +233,20 @@ class FreeCompany extends AbstractTrackerEntity
                         (empty($this->lodestone['estate']['greeting']) ? NULL : Sanitization::sanitizeHTML($this->lodestone['estate']['greeting'])),
                         (empty($this->lodestone['estate']['greeting']) ? 'null' : 'string'),
                     ],
-                    ':role_playing' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Role-playing', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':leveling' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Leveling', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':casual' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Casual', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':hardcore' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Hardcore', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':dungeons' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Dungeons', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':guildhests' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Guildhests', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':trials' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Trials', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':raids' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('Raids', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':pvp' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][array_search('PvP', array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
-                    ':tank' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][array_search('Tank', array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
-                    ':healer' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][array_search('Healer', array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
-                    ':dps' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][array_search('DPS', array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
-                    ':crafter' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][array_search('Crafter', array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
-                    ':gatherer' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][array_search('Gatherer', array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
+                    ':role_playing' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Role-playing', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':leveling' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Leveling', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':casual' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Casual', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':hardcore' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Hardcore', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':dungeons' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Dungeons', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':guildhests' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Guildhests', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':trials' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Trials', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':raids' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('Raids', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':pvp' => (empty($this->lodestone['focus']) ? 0 : $this->lodestone['focus'][\array_search('PvP', \array_column($this->lodestone['focus'], 'name'), true)]['enabled']),
+                    ':tank' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][\array_search('Tank', \array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
+                    ':healer' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][\array_search('Healer', \array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
+                    ':dps' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][\array_search('DPS', \array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
+                    ':crafter' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][\array_search('Crafter', \array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
+                    ':gatherer' => (empty($this->lodestone['seeking']) ? 0 : $this->lodestone['seeking'][\array_search('Gatherer', \array_column($this->lodestone['seeking'], 'name'), true)]['enabled']),
                     ':community_id' => [
                         (empty($this->lodestone['community_id']) ? NULL : $this->lodestone['community_id']),
                         (empty($this->lodestone['community_id']) ? 'null' : 'string'),
@@ -316,7 +316,7 @@ class FreeCompany extends AbstractTrackerEntity
                                 ':character_id' => $member,
                                 ':server' => $details['server'],
                                 ':name' => $details['name'],
-                                ':avatar' => str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
+                                ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
                                 ':gcRank' => (empty($details['grand_company']['rank']) ? '' : $details['grand_company']['rank']),
                             ]
                         ];

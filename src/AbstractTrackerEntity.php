@@ -56,8 +56,8 @@ abstract class AbstractTrackerEntity
     {
         #Convert to string for consistency
         $id = (string)$id;
-        if (preg_match($this->id_format, $id) !== 1) {
-            throw new \UnexpectedValueException('ID `'.$id.'` for entity `'.get_class($this).'` has incorrect format.');
+        if (\preg_match($this->id_format, $id) !== 1) {
+            throw new \UnexpectedValueException('ID `'.$id.'` for entity `'.\get_class($this).'` has incorrect format.');
         }
         $this->id = $id;
         return $this;
@@ -109,10 +109,10 @@ abstract class AbstractTrackerEntity
                 return [];
             }
         }
-        $array = get_mangled_object_vars($this);
+        $array = \get_mangled_object_vars($this);
         #Remove private and protected properties
         foreach ($array as $key => $value) {
-            if (preg_match('/^\x00/u', $key) === 1) {
+            if (\preg_match('/^\x00/u', $key) === 1) {
                 unset($array[$key]);
             }
         }
@@ -174,7 +174,7 @@ abstract class AbstractTrackerEntity
             return $exception->getMessage()."\n".$exception->getTraceAsString();
         }
         #Check if it has not been updated recently (10 minutes, to protect from potential abuse)
-        if (isset($updated) && (time() - strtotime($updated)) < 600) {
+        if (isset($updated) && (\time() - \strtotime($updated)) < 600) {
             #Return entity type
             return true;
         }
@@ -215,8 +215,8 @@ abstract class AbstractTrackerEntity
         if ($_SESSION['user_id'] === 1) {
             return ['http_error' => 403, 'reason' => 'Authentication required'];
         }
-        if (empty(array_intersect(['refresh_owned_ff', 'refresh_all_ff'], $_SESSION['permissions']))) {
-            return ['http_error' => 403, 'reason' => 'No `'.implode('` or `', ['refresh_owned_ff', 'refresh_all_ff']).'` permission'];
+        if (empty(\array_intersect(['refresh_owned_ff', 'refresh_all_ff'], $_SESSION['permissions']))) {
+            return ['http_error' => 403, 'reason' => 'No `'.\implode('` or `', ['refresh_owned_ff', 'refresh_all_ff']).'` permission'];
         }
         $id_column = match ($this::ENTITY_TYPE) {
             'character' => 'character_id',
@@ -294,7 +294,7 @@ abstract class AbstractTrackerEntity
         }
         #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
         #Since they lack some basic information, it's not possible to register them, so treat them as private
-        if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && in_array($this::ENTITY_TYPE, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
+        if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true && \in_array($this::ENTITY_TYPE, ['linkshell', 'crossworld_linkshell', 'crossworldlinkshell'])) {
             return 403;
         }
         unset($this->lodestone['404']);
@@ -333,7 +333,7 @@ abstract class AbstractTrackerEntity
      */
     public static function removeLodestoneDomain(string $url): string
     {
-        return str_replace([
+        return \str_replace([
             'https://img.finalfantasyxiv.com/lds/pc/global/images/itemicon/',
             'https://lds-img.finalfantasyxiv.com/itemicon/'
         ], '', $url);
@@ -351,20 +351,20 @@ abstract class AbstractTrackerEntity
             if (!empty($image)) {
                 #Emblem S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
                 #This was fixed by SE at some point, but now it's broken again, so we change the URL ourselves
-                $url_to_download = preg_replace('/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png', $image);
+                $url_to_download = \preg_replace('/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png', $image);
                 #Check if we have already downloaded the component image and use that one to speed up the process
                 if ($key === 0) {
                     #If it's background, we need to check if a subdirectory exists and create it, and create it if it does not
-                    $sub_dir = mb_substr(basename($image), 0, 3, 'UTF-8');
+                    $sub_dir = mb_substr(\basename($image), 0, 3, 'UTF-8');
                     $concurrent_directory = Config::$crests_components.'backgrounds/'.$sub_dir;
-                    if (!is_dir($concurrent_directory) && !mkdir($concurrent_directory) && !is_dir($concurrent_directory)) {
+                    if (!\is_dir($concurrent_directory) && !\mkdir($concurrent_directory) && !\is_dir($concurrent_directory)) {
                         throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrent_directory));
                     }
                 } elseif ($key === 2) {
                     #If it's an emblem, we need to check if a subdirectory exists and create it, and create it if it does not
-                    $sub_dir = mb_substr(basename($image), 0, 3, 'UTF-8');
+                    $sub_dir = mb_substr(\basename($image), 0, 3, 'UTF-8');
                     $concurrent_directory = Config::$crests_components.'emblems/'.$sub_dir;
-                    if (!is_dir($concurrent_directory) && !mkdir($concurrent_directory) && !is_dir($concurrent_directory)) {
+                    if (!\is_dir($concurrent_directory) && !\mkdir($concurrent_directory) && !\is_dir($concurrent_directory)) {
                         throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrent_directory));
                     }
                 } else {
@@ -373,20 +373,20 @@ abstract class AbstractTrackerEntity
                 $cached_image = self::crestToLocal($image);
                 if (!empty($cached_image)) {
                     #Try downloading the component if it's not present locally
-                    if (!is_file($cached_image)) {
+                    if (!\is_file($cached_image)) {
                         Images::download($url_to_download, $cached_image, false);
                     }
                     #If it's an emblem, check that other emblem variants are downloaded as well
                     if ($key === 2) {
-                        $emblem_index = (int)preg_replace('/(.+_)(\d{2})(_.+\.png)/', '$2', basename($image));
+                        $emblem_index = (int)\preg_replace('/(.+_)(\d{2})(_.+\.png)/', '$2', \basename($image));
                         for ($iteration = 0; $iteration <= 7; $iteration++) {
                             if ($iteration !== $emblem_index) {
-                                $emblem_file = Config::$crests_components.'emblems/'.$sub_dir.'/'.preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$iteration.'$3', basename($image));
-                                if (!is_file($emblem_file)) {
+                                $emblem_file = Config::$crests_components.'emblems/'.$sub_dir.'/'.\preg_replace('/(.+_)(\d{2})(_.+\.png)/', '${1}0'.$iteration.'$3', \basename($image));
+                                if (!\is_file($emblem_file)) {
                                     #We generate the link to download an emblem
                                     #In addition S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png is not working, so it should be S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png
                                     #This was fixed by SE at some point, but now it's broken again, so we change the URL ourselves
-                                    $url_to_download = preg_replace(['/(.+_)(\d{2})(_.+\.png)/', '/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/'], ['${1}0'.$iteration.'$3', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png'], $image);
+                                    $url_to_download = \preg_replace(['/(.+_)(\d{2})(_.+\.png)/', '/S7f_4f44211af230eac35370ef3e9fe15e51_07_128x128.png/'], ['${1}0'.$iteration.'$3', 'S7f_4f44211af230eac35370ef3e9fe15e51_08_128x128.png'], $image);
                                     try {
                                         Images::download($url_to_download, $emblem_file, false);
                                     } catch (\Throwable) {
@@ -410,14 +410,14 @@ abstract class AbstractTrackerEntity
     public static function crestToFavicon(array $images): ?string
     {
         $images = self::sortComponents($images);
-        $merged_filenames = (empty($images[0]) ? '' : basename($images[0])).(empty($images[1]) ? '' : basename($images[1])).(empty($images[2]) ? '' : basename($images[2]));
+        $merged_filenames = (empty($images[0]) ? '' : \basename($images[0])).(empty($images[1]) ? '' : \basename($images[1])).(empty($images[2]) ? '' : \basename($images[2]));
         #Get hash of the merged images based on their names
-        $crest_hash = hash('sha3-512', $merged_filenames);
+        $crest_hash = \hash('sha3-512', $merged_filenames);
         if (!empty($crest_hash)) {
             #Get a full path
             $full_path = mb_substr($crest_hash, 0, 2, 'UTF-8').'/'.mb_substr($crest_hash, 2, 2, 'UTF-8').'/'.$crest_hash.'.webp';
             #Generate an image file, if missing
-            if (!is_file(Config::$merged_crests_cache.$full_path)) {
+            if (!\is_file(Config::$merged_crests_cache.$full_path)) {
                 self::crestMerge($images, Config::$merged_crests_cache.$full_path);
             }
             return '/assets/images/fftracker/merged-crests/'.$full_path;
@@ -433,7 +433,7 @@ abstract class AbstractTrackerEntity
      */
     protected static function crestToLocal(string $image): ?string
     {
-        $filename = basename($image);
+        $filename = \basename($image);
         #Backgrounds
         if (str_starts_with($filename, 'F00') || str_starts_with($filename, 'B')) {
             return Config::$crests_components.'backgrounds/'.mb_substr($filename, 0, 3, 'UTF-8').'/'.$filename;
@@ -473,7 +473,7 @@ abstract class AbstractTrackerEntity
                 }
             }
         }
-        ksort($images_to_merge);
+        \ksort($images_to_merge);
         return $images_to_merge;
     }
     
@@ -495,12 +495,12 @@ abstract class AbstractTrackerEntity
             }
             #Check if the path exists and create it recursively, if not
             /* @noinspection PhpUsageOfSilenceOperatorInspection */
-            if (!is_dir(dirname($final_path)) && !@mkdir(dirname($final_path), recursive: true) && !is_dir(dirname($final_path))) {
+            if (!\is_dir(dirname($final_path)) && !@\mkdir(dirname($final_path), recursive: true) && !\is_dir(dirname($final_path))) {
                 throw new \RuntimeException(sprintf('Directory "%s" was not created', $final_path));
             }
             $gd = Images::merge($images);
             #Save the file
-            return $gd !== null && imagewebp($gd, $final_path, IMG_WEBP_LOSSLESS);
+            return $gd !== null && \imagewebp($gd, $final_path, \IMG_WEBP_LOSSLESS);
         } catch (\Throwable $exception) {
             if ($debug) {
                 Errors::error_log($exception, debug: $debug);
@@ -520,7 +520,7 @@ abstract class AbstractTrackerEntity
         foreach ($results as $key => $result) {
             if (isset($result['crest_part_1']) || isset($result['crest_part_2']) || isset($result['crest_part_3'])) {
                 $results[$key]['icon'] = self::crestToFavicon([$result['crest_part_1'], $result['crest_part_2'], $result['crest_part_3']]);
-                if (isset($result['gc_id']) && str_contains($results[$key]['icon'], 'not_found') && in_array($result['gc_id'], [1, 2, 3], true)) {
+                if (isset($result['gc_id']) && str_contains($results[$key]['icon'], 'not_found') && \in_array($result['gc_id'], [1, 2, 3], true)) {
                     $results[$key]['icon'] = $result['gc_id'];
                 }
             } else {

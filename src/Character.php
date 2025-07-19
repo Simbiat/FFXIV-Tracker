@@ -43,7 +43,7 @@ class Character extends AbstractTrackerEntity
         $data = Query::query('SELECT *, `ffxiv__character`.`character_id`, `ffxiv__achievement`.`icon` AS `title_icon`, `ffxiv__character`.`name`, `ffxiv__character`.`registered`, `ffxiv__character`.`updated` FROM `ffxiv__character`LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`ffxiv__character`.`character_id` LEFT JOIN `ffxiv__clan` ON `ffxiv__character`.`clan_id` = `ffxiv__clan`.`clan_id` LEFT JOIN `ffxiv__guardian` ON `ffxiv__character`.`guardian_id` = `ffxiv__guardian`.`guardian_id` LEFT JOIN `ffxiv__nameday` ON `ffxiv__character`.`nameday_id` = `ffxiv__nameday`.`nameday_id` LEFT JOIN `ffxiv__city` ON `ffxiv__character`.`city_id` = `ffxiv__city`.`city_id` LEFT JOIN `ffxiv__server` ON `ffxiv__character`.`server_id` = `ffxiv__server`.`server_id` LEFT JOIN `ffxiv__grandcompany_rank` ON `ffxiv__character`.`gc_rank_id` = `ffxiv__grandcompany_rank`.`gc_rank_id` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__grandcompany_rank`.`gc_id` = `ffxiv__grandcompany`.`gc_id` LEFT JOIN `ffxiv__achievement` ON `ffxiv__character`.`title_id` = `ffxiv__achievement`.`achievement_id` WHERE `ffxiv__character`.`character_id` = :id;', [':id' => $this->id], return: 'row');
         if (!empty($data['hidden'])) {
             foreach ($data as $key => $value) {
-                if (!in_array($key, ['avatar', 'registered', 'updated', 'deleted', 'hidden', 'name'])) {
+                if (!\in_array($key, ['avatar', 'registered', 'updated', 'deleted', 'hidden', 'name'])) {
                     unset($data[$key]);
                 }
             }
@@ -82,7 +82,7 @@ class Character extends AbstractTrackerEntity
         #Clean up the data from unnecessary (technical) clutter
         unset($data['clan_id'], $data['nameday_id'], $data['achievement_id'], $data['category'], $data['subcategory'], $data['how_to'], $data['points'], $data['icon'], $data['item'], $data['item_icon'], $data['item_id'], $data['server_id']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && (time() - strtotime($data['updated'])) >= 86400) {
+        if (empty($_SESSION['useragent']['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'character'], 'message' => 'Updating character with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
@@ -111,9 +111,9 @@ class Character extends AbstractTrackerEntity
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allow_sleep) {
-                    sleep(60);
+                    \sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
@@ -142,10 +142,10 @@ class Character extends AbstractTrackerEntity
         $this->name = $from_db['name'];
         $this->avatar_id = $from_db['avatar'];
         $this->dates = [
-            'registered' => strtotime($from_db['registered']),
-            'updated' => strtotime($from_db['updated']),
-            'hidden' => (empty($from_db['hidden']) ? null : strtotime($from_db['hidden'])),
-            'deleted' => (empty($from_db['deleted']) ? null : strtotime($from_db['deleted'])),
+            'registered' => \strtotime($from_db['registered']),
+            'updated' => \strtotime($from_db['updated']),
+            'hidden' => (empty($from_db['hidden']) ? null : \strtotime($from_db['hidden'])),
+            'deleted' => (empty($from_db['deleted']) ? null : \strtotime($from_db['deleted'])),
         ];
         $this->biology = [
             'gender' => (int)($from_db['gender'] ?? 0),
@@ -188,7 +188,7 @@ class Character extends AbstractTrackerEntity
         }
         $this->achievements = $from_db['achievements'] ?? [];
         foreach ($this->achievements as $key => $achievement) {
-            $this->achievements[$key]['time'] = (empty($achievement['time']) ? null : strtotime($achievement['time']));
+            $this->achievements[$key]['time'] = (empty($achievement['time']) ? null : \strtotime($achievement['time']));
         }
         $this->achievement_points = $from_db['achievement_points'] ?? 0;
         $this->jobs = $from_db['jobs'] ?? [];
@@ -264,7 +264,7 @@ class Character extends AbstractTrackerEntity
                     ':character_id' => $this->id,
                     ':server' => $this->lodestone['server'],
                     ':name' => $this->lodestone['name'],
-                    ':avatar' => str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0_96x96.jpg', 'c0.jpg'], '', $this->lodestone['avatar']),
+                    ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0_96x96.jpg', 'c0.jpg'], '', $this->lodestone['avatar']),
                     ':biography' => [
                         (empty($this->lodestone['bio']) ? NULL : $this->lodestone['bio']),
                         (empty($this->lodestone['bio']) ? 'null' : 'string'),
@@ -336,13 +336,13 @@ class Character extends AbstractTrackerEntity
                 foreach ($this->lodestone['achievements'] as $achievement_id => $item) {
                     $icon = self::removeLodestoneDomain($item['icon']);
                     #Download the icon if it's not already present
-                    if (is_file(str_replace('.png', '.webp', Config::$icons.$icon))) {
+                    if (\is_file(\str_replace('.png', '.webp', Config::$icons.$icon))) {
                         $webp = true;
                     } else {
                         $webp = Images::download($item['icon'], Config::$icons.$icon);
                     }
                     if ($webp) {
-                        $icon = str_replace('.png', '.webp', $icon);
+                        $icon = \str_replace('.png', '.webp', $icon);
                         $queries[] = [
                             'INSERT INTO `ffxiv__achievement` SET `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points ON DUPLICATE KEY UPDATE `updated`=`updated`, `name`=:name, `icon`=:icon, `points`=:points;',
                             [
@@ -353,7 +353,7 @@ class Character extends AbstractTrackerEntity
                             ],
                         ];
                         #If the achievement is new since the last check, or if this is the first time the character is being processed, add and count the achievement
-                        if (!empty($updated) && (int)$item['time'] > strtotime($updated)) {
+                        if (!empty($updated) && (int)$item['time'] > \strtotime($updated)) {
                             $queries[] = [
                                 'INSERT INTO `ffxiv__character_achievement` SET `character_id`=:character_id, `achievement_id`=:achievement_id, `time`=:time ON DUPLICATE KEY UPDATE `time`=:time;',
                                 [
@@ -414,7 +414,7 @@ class Character extends AbstractTrackerEntity
                         ':character_id' => $this->id,
                         ':server' => $this->lodestone['server'],
                         ':name' => $this->lodestone['name'],
-                        ':avatar' => str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0_96x96.jpg', 'c0.jpg'], '', $this->lodestone['avatar']),
+                        ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0_96x96.jpg', 'c0.jpg'], '', $this->lodestone['avatar']),
                     ],
                 ];
                 $this->insertServerAndName($queries);
@@ -531,7 +531,7 @@ class Character extends AbstractTrackerEntity
                 return ['http_error' => 424, 'reason' => 'No biography found for character with id `'.$this->id.'`'];
             }
             #Check if the biography contains the respected text
-            $token = preg_replace('/(.*)(fftracker:([a-z\d]{64}))(.*)/uis', '$3', $this->lodestone['bio']);
+            $token = \preg_replace('/(.*)(fftracker:([a-z\d]{64}))(.*)/uis', '$3', $this->lodestone['bio']);
             if (empty($token)) {
                 return ['http_error' => 424, 'reason' => 'No tracker token found for character with id `'.$this->id.'`'];
             }

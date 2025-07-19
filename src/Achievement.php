@@ -41,7 +41,7 @@ class Achievement extends AbstractTrackerEntity
         #Get last characters with this achievement
         $data['characters'] = Query::query('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`character_id` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id` = `ffxiv__character_achievement`.`character_id` WHERE `ffxiv__character_achievement`.`achievement_id` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id], return: 'all');
         #Register for an update if old enough or category or how_to or db_id are empty. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (time() - strtotime($data['updated'])) >= 31536000)) {
+        if (empty($_SESSION['useragent']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (\time() - \strtotime($data['updated'])) >= 31536000)) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
         }
         return $data;
@@ -84,13 +84,13 @@ class Achievement extends AbstractTrackerEntity
         foreach ($achievement['characters'] as $char) {
             $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
                 if ($allow_sleep) {
-                    sleep(60);
+                    \sleep(60);
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
+            if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && \is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
                 #Try to get achievement ID as seen in Lodestone database (play guide)
                 $data['characters'][$char['id']]['achievements'][$this->id]['db_id'] = $this->getDBID($data['characters'][$char['id']]['achievements'][$this->id]['name']);
                 #Remove time
@@ -118,7 +118,7 @@ class Achievement extends AbstractTrackerEntity
             return null;
         }
         #Flip the array of achievements (if any) to ease searching for the right element
-        $db_search_result['database']['achievement'] = array_flip(array_combine(array_keys($db_search_result['database']['achievement']), array_column($db_search_result['database']['achievement'], 'name')));
+        $db_search_result['database']['achievement'] = \array_flip(\array_combine(\array_keys($db_search_result['database']['achievement']), \array_column($db_search_result['database']['achievement'], 'name')));
         if (!empty($db_search_result['database']['achievement'][$search_for])) {
             return $db_search_result['database']['achievement'][$search_for];
         }
@@ -135,8 +135,8 @@ class Achievement extends AbstractTrackerEntity
     protected function process(array $from_db): void
     {
         $this->name = $from_db['name'];
-        $this->updated = strtotime($from_db['updated']);
-        $this->registered = strtotime($from_db['registered']);
+        $this->updated = \strtotime($from_db['updated']);
+        $this->registered = \strtotime($from_db['registered']);
         $this->category = $from_db['category'];
         $this->subcategory = $from_db['subcategory'];
         $this->icon = $from_db['icon'];
@@ -172,7 +172,7 @@ class Achievement extends AbstractTrackerEntity
         #Download icon
         $webp = Images::download($this->lodestone['icon'], Config::$icons.$bindings[':icon']);
         if ($webp) {
-            $bindings[':icon'] = str_replace('.png', '.webp', $bindings[':icon']);
+            $bindings[':icon'] = \str_replace('.png', '.webp', $bindings[':icon']);
         }
         $bindings[':points'] = $this->lodestone['points'];
         $bindings[':category'] = $this->lodestone['category'];
@@ -199,7 +199,7 @@ class Achievement extends AbstractTrackerEntity
             #Download icon
             $webp = Images::download($this->lodestone['item']['icon'], Config::$icons.$bindings[':item_icon']);
             if ($webp) {
-                $bindings[':item_icon'] = str_replace('.png', '.webp', $bindings[':item_icon']);
+                $bindings[':item_icon'] = \str_replace('.png', '.webp', $bindings[':item_icon']);
             }
         }
         if (empty($this->lodestone['item']['id'])) {

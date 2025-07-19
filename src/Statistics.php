@@ -37,11 +37,11 @@ class Statistics
             $type = 'other';
         }
         #Create a path if missing
-        if (!is_dir(Config::$statistics) && !mkdir(Config::$statistics) && !is_dir(Config::$statistics)) {
-            throw new \RuntimeException(sprintf('Directory "%s" was not created', Config::$statistics));
+        if (!\is_dir(Config::$statistics) && !\mkdir(Config::$statistics) && !\is_dir(Config::$statistics)) {
+            throw new \RuntimeException(\sprintf('Directory "%s" was not created', Config::$statistics));
         }
         $cache_path = Config::$statistics.$type.'.json';
-        $data['time'] = time();
+        $data['time'] = \time();
         switch ($type) {
             case 'raw':
                 $this->getRaw($data);
@@ -66,7 +66,7 @@ class Statistics
                 break;
         }
         #Attempt to write to cache
-        file_put_contents($cache_path, json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE | JSON_OBJECT_AS_ARRAY | JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION | JSON_PRETTY_PRINT));
+        \file_put_contents($cache_path, \json_encode($data, \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_OBJECT_AS_ARRAY | \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION | \JSON_PRETTY_PRINT));
         if ($type === 'bugs') {
             $this->scheduleBugs($data);
         }
@@ -170,10 +170,10 @@ class Statistics
         $data['freecompany']['active'] = Query::query('SELECT IF(`ffxiv__freecompany`.`recruitment`=1, \'Recruiting\', \'Not recruiting\') AS `recruiting`, SUM(IF(`ffxiv__freecompany`.`active_id` = 1, 1, 0)) AS `Always`, SUM(IF(`ffxiv__freecompany`.`active_id` = 2, 1, 0)) AS `Weekdays`, SUM(IF(`ffxiv__freecompany`.`active_id` = 3, 1, 0)) AS `Weekends` FROM `ffxiv__freecompany` INNER JOIN `ffxiv__timeactive` ON `ffxiv__freecompany`.`active_id`=`ffxiv__timeactive`.`active_id` WHERE `ffxiv__freecompany`.`deleted` IS NULL GROUP BY 1 ORDER BY 1 DESC', return: 'all');
         #Get statistics by activities
         $data['freecompany']['activities'] = Query::query('SELECT  SUM(`role_playing`)/COUNT(`fc_id`)*100 AS `Role-playing`, SUM(`leveling`)/COUNT(`fc_id`)*100 AS `Leveling`, SUM(`casual`)/COUNT(`fc_id`)*100 AS `Casual`, SUM(`hardcore`)/COUNT(`fc_id`)*100 AS `Hardcore`, SUM(`dungeons`)/COUNT(`fc_id`)*100 AS `Dungeons`, SUM(`guildhests`)/COUNT(`fc_id`)*100 AS `Guildhests`, SUM(`trials`)/COUNT(`fc_id`)*100 AS `Trials`, SUM(`raids`)/COUNT(`fc_id`)*100 AS `Raids`, SUM(`pvp`)/COUNT(`fc_id`)*100 AS `PvP` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL', return: 'row');
-        arsort($data['freecompany']['activities']);
+        \arsort($data['freecompany']['activities']);
         #Get statistics by job search
         $data['freecompany']['job_demand'] = Query::query('SELECT SUM(`tank`)/COUNT(`fc_id`)*100 AS `Tank`, SUM(`healer`)/COUNT(`fc_id`)*100 AS `Healer`, SUM(`dps`)/COUNT(`fc_id`)*100 AS `DPS`, SUM(`crafter`)/COUNT(`fc_id`)*100 AS `Crafter`, SUM(`gatherer`)/COUNT(`fc_id`)*100 AS `Gatherer` FROM `ffxiv__freecompany` WHERE `deleted` IS NULL', return: 'row');
-        arsort($data['freecompany']['job_demand']);
+        \arsort($data['freecompany']['job_demand']);
         #Get statistics for grand companies for characters
         $data['gc_characters'] = Query::query(
             'SELECT COUNT(*) as `count`, `ffxiv__character`.`gender`, `ffxiv__grandcompany`.`gc_name`, `ffxiv__grandcompany_rank`.`gc_rank` FROM `ffxiv__character`
@@ -220,7 +220,7 @@ class Statistics
         $data['achievements'] = Splitters::splitByKey($data['achievements'], 'category');
         #Get only the top 20 for each category
         foreach ($data['achievements'] as $key => $category) {
-            $data['achievements'][$key] = array_slice($category, 0, 20);
+            $data['achievements'][$key] = \array_slice($category, 0, 20);
         }
         #Get the most and least popular titles
         $data['titles'] = Splitters::topAndBottom(Query::query('SELECT COUNT(*) as `count`, `ffxiv__achievement`.`title`, `ffxiv__achievement`.`achievement_id` FROM `ffxiv__character` LEFT JOIN `ffxiv__achievement` ON `ffxiv__achievement`.`achievement_id`=`ffxiv__character`.`title_id` WHERE `ffxiv__character`.`title_id` IS NOT NULL GROUP BY `title_id` ORDER BY `count` DESC;', return: 'all'), 20);
@@ -268,7 +268,7 @@ class Statistics
         foreach ($data['timelines'] as $date => $datapoint) {
             $data['timelines'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }
-        krsort($data['timelines']);
+        \krsort($data['timelines']);
     }
     
     /**
@@ -396,8 +396,8 @@ class Statistics
         foreach ($data['updates_stats'] as $date => $datapoint) {
             $data['updates_stats'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }
-        krsort($data['updates_stats']);
-        $data['updates_stats'] = array_slice($data['updates_stats'], 0, 30);
+        \krsort($data['updates_stats']);
+        $data['updates_stats'] = \array_slice($data['updates_stats'], 0, 30);
     }
     
     /**
