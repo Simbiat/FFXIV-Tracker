@@ -71,6 +71,10 @@ class Achievement extends AbstractTrackerEntity
         #Somewhat simpler and faster processing if we have db_id already
         if (!empty($achievement['db_id'])) {
             $data = $lodestone->getAchievementFromDB($achievement['db_id'])->getResult();
+            #Most likely temporary unavailability of the Lodestone page
+            if (empty($data['database']['achievement'][$achievement['db_id']])) {
+                return ['404' => true];
+            }
             $data = $data['database']['achievement'][$achievement['db_id']];
             unset($data['time']);
             $data['db_id'] = $achievement['db_id'];
