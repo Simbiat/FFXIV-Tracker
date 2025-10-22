@@ -6,6 +6,7 @@ namespace Simbiat\FFXIV;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\Website\Errors;
+use Simbiat\Website\HomePage;
 
 /**
  * Class representing a FFXIV linkshell (chat group)
@@ -43,7 +44,7 @@ class Linkshell extends AbstractTrackerEntity
             unset($data['server']);
         }
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
+        if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
             if ((int)$data['crossworld'] === 0) {
                 new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'linkshell'], 'message' => 'Updating linkshell with ID '.$this->id, 'priority' => 1])->add();
             } else {

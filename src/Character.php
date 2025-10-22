@@ -7,6 +7,7 @@ use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
+use Simbiat\Website\HomePage;
 use Simbiat\Website\Images;
 use Simbiat\Website\Sanitization;
 use Simbiat\Website\Security;
@@ -82,7 +83,7 @@ class Character extends AbstractTrackerEntity
         #Clean up the data from unnecessary (technical) clutter
         unset($data['clan_id'], $data['nameday_id'], $data['achievement_id'], $data['category'], $data['subcategory'], $data['how_to'], $data['points'], $data['icon'], $data['item'], $data['item_icon'], $data['item_id'], $data['server_id']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
+        if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'character'], 'message' => 'Updating character with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;

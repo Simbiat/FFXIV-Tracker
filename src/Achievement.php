@@ -7,6 +7,7 @@ use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
+use Simbiat\Website\HomePage;
 use Simbiat\Website\Images;
 
 /**
@@ -41,7 +42,7 @@ class Achievement extends AbstractTrackerEntity
         #Get last characters with this achievement
         $data['characters'] = Query::query('SELECT * FROM (SELECT \'character\' AS `type`, `ffxiv__character`.`character_id` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id` = `ffxiv__character_achievement`.`character_id` WHERE `ffxiv__character_achievement`.`achievement_id` = :id ORDER BY `ffxiv__character_achievement`.`time` DESC LIMIT 50) t ORDER BY `name`', [':id' => $this->id], return: 'all');
         #Register for an update if old enough or category or how_to or db_id are empty. Also check that this is not a bot.
-        if (empty($_SESSION['useragent']['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (\time() - \strtotime($data['updated'])) >= 31536000)) {
+        if (empty(HomePage::$user_agent['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (\time() - \strtotime($data['updated'])) >= 31536000)) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
         }
         return $data;
