@@ -118,10 +118,8 @@ class Character extends AbstractTrackerEntity
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (empty($lodestone->getLastError())) {
-                return 'Failed to get any data for Character '.$this->id;
-            }
-            return 'Failed to get all necessary data for Character '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
+            Errors::error_log(new \RuntimeException('Failed to get all necessary data for Character '.$this->id), $lodestone->getErrors());
+            return 'Failed to get all necessary data for Character '.$this->id;
         }
         #Try to get achievements now, that we got basic information, and there were no issues with it.
         $data = $lodestone->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();

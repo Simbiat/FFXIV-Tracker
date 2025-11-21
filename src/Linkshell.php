@@ -78,10 +78,8 @@ class Linkshell extends AbstractTrackerEntity
                 return 'Request throttled by Lodestone';
             }
             if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]) || !isset($data['linkshells'][$this->id]['page_total']) || $data['linkshells'][$this->id]['page_total'] !== 0) {
-                if (empty($lodestone->getLastError())) {
-                    return 'Failed to get any data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id;
-                }
-                return 'Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
+                Errors::error_log(new \RuntimeException('Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id), $lodestone->getErrors());
+                return 'Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id;
             }
             #At some point, empty linkshells became possible on lodestone, those that have a page, but no members at all, and are not searchable by name. Possibly private linkshells or something like that
             $data['linkshells'][$this->id]['empty'] = true;

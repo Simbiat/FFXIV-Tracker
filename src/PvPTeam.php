@@ -71,10 +71,8 @@ class PvPTeam extends AbstractTrackerEntity
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (empty($lodestone->getLastError())) {
-                return 'Failed to get any data for PvP Team '.$this->id;
-            }
-            return 'Failed to get all necessary data for PvP Team '.$this->id.' ('.$lodestone->getLastError()['url'].'): '.$lodestone->getLastError()['error'];
+            Errors::error_log(new \RuntimeException('Failed to get all necessary data for PvP Team '.$this->id), $lodestone->getErrors());
+            return 'Failed to get all necessary data for PvP Team '.$this->id;
         }
         if (empty($data['pvpteams'][$this->id]['crest'][2]) && !empty($data['pvpteams'][$this->id]['crest'][1])) {
             $data['pvpteams'][$this->id]['crest'][2] = $data['pvpteams'][$this->id]['crest'][1];
