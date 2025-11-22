@@ -99,7 +99,7 @@ class Character extends AbstractTrackerEntity
     public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = (new Lodestone());
-        $data = $lodestone->getCharacter($this->id)->getCharacterJobs($this->id)->getResult();
+        $data = $lodestone->getCharacter($this->id)->getResult(false);
         #Check if the character is private
         if (isset($data['characters'][$this->id]['private']) && $data['characters'][$this->id]['private'] === true) {
             $this->markPrivate();
@@ -121,8 +121,8 @@ class Character extends AbstractTrackerEntity
             Errors::error_log(new \RuntimeException('Failed to get all necessary data for Character '.$this->id), $lodestone->getErrors());
             return 'Failed to get all necessary data for Character '.$this->id;
         }
-        #Try to get achievements now, that we got basic information, and there were no issues with it.
-        $data = $lodestone->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
+        #Try to get jobs and achievements now, that we got basic information, and there were no issues with it.
+        $data = $lodestone->getCharacterJobs($this->id)->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
         $data = $data['characters'][$this->id];
         $data['id'] = $this->id;
         $data['404'] = false;
