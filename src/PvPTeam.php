@@ -65,7 +65,7 @@ class PvPTeam extends AbstractTrackerEntity
                 return ['404' => true];
             }
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
                 if ($allow_sleep) {
                     \sleep(60);
                 }

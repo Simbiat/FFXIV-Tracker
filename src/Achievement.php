@@ -89,7 +89,7 @@ class Achievement extends AbstractTrackerEntity
         foreach ($achievement['characters'] as $char) {
             $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
             #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request, 429/', $lodestone->getLastError()['error']) === 1) {
+            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
                 if ($allow_sleep) {
                     \sleep(60);
                 }
