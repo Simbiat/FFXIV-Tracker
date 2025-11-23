@@ -295,13 +295,50 @@ class Statistics
         ));
         #Get entities with duplicate names
         $duplicate_names = Query::query(
-            'SELECT \'character\' AS `type`, `chartable`.`character_id` AS `id`, `name`, `avatar` as `icon`, `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `server`, `data_center` FROM `ffxiv__character` as `chartable` LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`chartable`.`character_id` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`chartable`.`server_id` WHERE `deleted` IS NULL AND `hidden` IS NULL AND (SELECT COUNT(*) as `count` FROM `ffxiv__character` WHERE `ffxiv__character`.`name`=`chartable`.`name` AND `ffxiv__character`.`server_id`=`chartable`.`server_id` AND `deleted` is NULL)>1
-                            UNION ALL
-                            SELECT \'freecompany\' AS `type`, `fc_id` AS `id`, `name`, NULL as `icon`, NULL as `user_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `server`, `data_center`  FROM `ffxiv__freecompany` as `fctable` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`fctable`.`server_id` WHERE `deleted` is NULL AND (SELECT COUNT(*) as `count` FROM `ffxiv__freecompany` WHERE `ffxiv__freecompany`.`name`= BINARY `fctable`.`name` AND `ffxiv__freecompany`.`server_id`=`fctable`.`server_id` AND `deleted` is NULL)>1
-                            UNION ALL
-                            SELECT \'pvpteam\' AS `type`, `pvp_id` AS `id`, `name`, NULL as `icon`, NULL as `user_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `server`, `data_center`  FROM `ffxiv__pvpteam` as `pvptable` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`pvptable`.`data_center_id` WHERE `deleted` is NULL AND (SELECT COUNT(*) as `count` FROM `ffxiv__pvpteam` WHERE `ffxiv__pvpteam`.`name`= BINARY `pvptable`.`name` AND `ffxiv__pvpteam`.`data_center_id`=`pvptable`.`data_center_id` AND `deleted` is NULL)>1
-                            UNION ALL
-                            SELECT IF(`crossworld` = 0, \'linkshell\', \'crossworldlinkshell\') AS `type`, `ls_id` AS `id`, `name`, NULL as `icon`, NULL as `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `server`, `data_center`  FROM `ffxiv__linkshell` as `lstable` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`lstable`.`server_id` WHERE `deleted` is NULL AND (SELECT COUNT(*) as `count` FROM `ffxiv__linkshell` WHERE `ffxiv__linkshell`.`name`= BINARY `lstable`.`name` AND `ffxiv__linkshell`.`server_id`=`lstable`.`server_id` AND `deleted` is NULL AND `ffxiv__linkshell`.`crossworld`=`lstable`.`crossworld`)>1;', return: 'all'
+        /** @lang MariaDB */ '(
+                        SELECT \'character\' AS `type`, `chartable`.`character_id` AS `id`, `name`, `avatar` AS `icon`, `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `s`.`server`, `s`.`data_center`
+                        FROM (
+                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
+                            FROM `ffxiv__character` AS `f`
+                            WHERE `f`.`deleted` IS NULL AND `hidden` IS NULL
+                        ) AS `chartable`
+                        LEFT JOIN `ffxiv__server` AS `s` ON `s`.`server_id` = `chartable`.`server_id`
+                        LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`chartable`.`character_id`
+                        WHERE `chartable`.`dup_count` > 1
+                    )
+                    UNION ALL
+                    (
+                        SELECT \'freecompany\' AS `type`, `fc_id` AS `id`, `name`, NULL AS `icon`, NULL AS `user_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `s`.`server`, `s`.`data_center`
+                        FROM (
+                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
+                            FROM `ffxiv__freecompany` AS `f`
+                            WHERE `f`.`deleted` IS NULL
+                        ) AS `fctable`
+                        LEFT JOIN `ffxiv__server` AS `s` ON `s`.`server_id` = `fctable`.`server_id`
+                        WHERE `fctable`.`dup_count` > 1
+                    )
+                    UNION ALL
+                    (
+                        SELECT \'pvpteam\' AS `type`, `pvp_id` AS `id`, `name`, NULL AS `icon`, NULL AS `user_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `s`.`server`, `s`.`data_center`
+                        FROM (
+                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`data_center_id`) AS `dup_count`
+                            FROM `ffxiv__pvpteam` AS `f`
+                            WHERE `f`.`deleted` IS NULL
+                        ) AS `pvptable`
+                        LEFT JOIN `ffxiv__server` AS `s` ON `s`.`server_id` = `pvptable`.`data_center_id`
+                        WHERE `pvptable`.`dup_count` > 1
+                    )
+                    UNION ALL
+                    (
+                        SELECT IF(`crossworld` = 0, \'linkshell\', \'crossworldlinkshell\') AS `type`, `ls_id` AS `id`, `name`, NULL AS `icon`, NULL AS `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `s`.`server`, `s`.`data_center`
+                        FROM (
+                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`, `f`.`crossworld`) AS `dup_count`
+                            FROM `ffxiv__linkshell` AS `f`
+                            WHERE `f`.`deleted` IS NULL
+                        ) AS `lstable`
+                        LEFT JOIN `ffxiv__server` AS `s` ON `s`.`server_id` = `lstable`.`server_id`
+                        WHERE `lstable`.`dup_count` > 1
+                    );', return: 'all'
         );
         #Split by entity type
         $data['bugs']['duplicate_names'] = Splitters::splitByKey($duplicate_names, 'type', keep_key: true);
