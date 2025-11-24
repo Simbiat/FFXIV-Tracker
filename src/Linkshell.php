@@ -31,7 +31,7 @@ class Linkshell extends AbstractTrackerEntity
         #Get general information
         $data = Query::query('SELECT * FROM `ffxiv__linkshell` LEFT JOIN `ffxiv__server` ON `ffxiv__linkshell`.`server_id`=`ffxiv__server`.`server_id` WHERE `ls_id`=:id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
-        if (empty($data)) {
+        if ($data === []) {
             return [];
         }
         #Get old names
@@ -64,20 +64,25 @@ class Linkshell extends AbstractTrackerEntity
     public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = (new Lodestone());
-        $data = $lodestone->getLinkshellMembers($this->id, 0)->getResult();
+        try {
+            $data = $lodestone->getLinkshellMembers($this->id, 0)->getResult();
+        } catch (\Throwable $exception) {
+            if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                if ($allow_sleep) {
+                    #Take a pause if we were throttled, and pause is allowed
+                    \sleep(60);
+                }
+                return 'Request throttled by Lodestone';
+            }
+            Errors::error_log($exception, $lodestone->getErrors());
+            return 'Failed to get all necessary data for Character '.$this->id;
+        }
         if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]['server']) || (empty($data['linkshells'][$this->id]['members']) && (int)$data['linkshells'][$this->id]['members_count'] > 0) || (!empty($data['linkshells'][$this->id]['members']) && \count($data['linkshells'][$this->id]['members']) < (int)$data['linkshells'][$this->id]['members_count'])) {
             if (!empty($data['linkshells'][$this->id]['members']) && $data['linkshells'][$this->id]['members'] === 404) {
                 $this->delete();
                 return ['404' => true];
             }
-            #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
-                if ($allow_sleep) {
-                    \sleep(60);
-                }
-                return 'Request throttled by Lodestone';
-            }
-            if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]) || !isset($data['linkshells'][$this->id]['page_total']) || $data['linkshells'][$this->id]['page_total'] !== 0) {
+            if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]) || !\array_key_exists('page_total', $data['linkshells'][$this->id]) || $data['linkshells'][$this->id]['page_total'] !== 0) {
                 Errors::error_log(new \RuntimeException('Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id), $lodestone->getErrors());
                 return 'Failed to get all necessary data for '.($this::CROSSWORLD ? 'Crossworld ' : '').'Linkshell '.$this->id;
             }
@@ -126,7 +131,7 @@ class Linkshell extends AbstractTrackerEntity
     {
         try {
             #If the `empty` flag is set, it means that the Lodestone page is empty, so we can't update anything besides name, data center and formed date
-            if (isset($this->lodestone['empty']) && $this->lodestone['empty'] === true) {
+            if (\array_key_exists('empty', $this->lodestone) && $this->lodestone['empty'] === true) {
                 $queries[] = [
                     'UPDATE `ffxiv__linkshell` SET `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL WHERE `ls_id`=:ls_id',
                     [
@@ -172,7 +177,7 @@ class Linkshell extends AbstractTrackerEntity
             #Process members that left the linkshell
             foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
-                if (!isset($this->lodestone['members'][$member])) {
+                if (!\array_key_exists($member, $this->lodestone['members'])) {
                     #Update status for the character
                     $queries[] = [
                         'UPDATE `ffxiv__linkshell_character` SET `current`=0 WHERE `ls_id`=:ls_id AND `character_id`=:character_id;',

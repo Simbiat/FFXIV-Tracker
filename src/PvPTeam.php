@@ -32,7 +32,7 @@ class PvPTeam extends AbstractTrackerEntity
         #Get general information
         $data = Query::query('SELECT * FROM `ffxiv__pvpteam` LEFT JOIN `ffxiv__server` ON `ffxiv__pvpteam`.`data_center_id`=`ffxiv__server`.`server_id` WHERE `pvp_id`=:id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
-        if (empty($data)) {
+        if ($data === []) {
             return [];
         }
         #Get old names
@@ -58,18 +58,23 @@ class PvPTeam extends AbstractTrackerEntity
     public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = new Lodestone();
-        $data = $lodestone->getPvPTeam($this->id)->getResult();
+        try {
+            $data = $lodestone->getPvPTeam($this->id)->getResult();
+        } catch (\Throwable $exception) {
+            if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                if ($allow_sleep) {
+                    #Take a pause if we were throttled, and pause is allowed
+                    \sleep(60);
+                }
+                return 'Request throttled by Lodestone';
+            }
+            Errors::error_log($exception, $lodestone->getErrors());
+            return 'Failed to get all necessary data for Character '.$this->id;
+        }
         if (empty($data['pvpteams'][$this->id]['data_center']) || empty($data['pvpteams'][$this->id]['members'])) {
             if (!empty($data['pvpteams'][$this->id]['members']) && (int)$data['pvpteams'][$this->id]['members'] === 404) {
                 $this->delete();
                 return ['404' => true];
-            }
-            #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
-                if ($allow_sleep) {
-                    \sleep(60);
-                }
-                return 'Request throttled by Lodestone';
             }
             Errors::error_log(new \RuntimeException('Failed to get all necessary data for PvP Team '.$this->id), $lodestone->getErrors());
             return 'Failed to get all necessary data for PvP Team '.$this->id;
@@ -164,7 +169,7 @@ class PvPTeam extends AbstractTrackerEntity
             #Process members that left the team
             foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
-                if (!isset($this->lodestone['members'][$member])) {
+                if (!\array_key_exists($member, $this->lodestone['members'])) {
                     #Update status for the character
                     $queries[] = [
                         'UPDATE `ffxiv__pvpteam_character` SET `current`=0 WHERE `pvp_id`=:pvp_id AND `character_id`=:character_id;',
@@ -217,8 +222,8 @@ class PvPTeam extends AbstractTrackerEntity
                 $this->charMassCron($this->lodestone['members']);
             }
             return true;
-        } catch (\Throwable $e) {
-            Errors::error_log($e, 'pvp_id: '.$this->id);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, 'pvp_id: '.$this->id);
             return false;
         }
     }
@@ -241,8 +246,8 @@ class PvPTeam extends AbstractTrackerEntity
                 'UPDATE `ffxiv__pvpteam` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `pvp_id` = :id', [':id' => $this->id],
             ];
             return Query::query($queries);
-        } catch (\Throwable $e) {
-            Errors::error_log($e, debug: $this->debug);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, debug: $this->debug);
             return false;
         }
     }

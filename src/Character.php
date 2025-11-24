@@ -51,7 +51,7 @@ class Character extends AbstractTrackerEntity
             return $data;
         }
         #Return empty if nothing was found
-        if (empty($data)) {
+        if ($data === []) {
             return [];
         }
         #Get username if character is linked to a user
@@ -99,9 +99,21 @@ class Character extends AbstractTrackerEntity
     public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = (new Lodestone());
-        $data = $lodestone->getCharacter($this->id)->getResult(false);
+        try {
+            $data = $lodestone->getCharacter($this->id)->getResult(false);
+        } catch (\Throwable $exception) {
+            if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                if ($allow_sleep) {
+                    #Take a pause if we were throttled, and pause is allowed
+                    \sleep(60);
+                }
+                return 'Request throttled by Lodestone';
+            }
+            Errors::error_log($exception, $lodestone->getErrors());
+            return 'Failed to get all necessary data for Character '.$this->id;
+        }
         #Check if the character is private
-        if (isset($data['characters'][$this->id]['private']) && $data['characters'][$this->id]['private'] === true) {
+        if (\array_key_exists('private', $data['characters'][$this->id]) && $data['characters'][$this->id]['private'] === true) {
             $this->markPrivate();
             return $data['characters'][$this->id];
         }
@@ -111,18 +123,21 @@ class Character extends AbstractTrackerEntity
                 $this->delete();
                 return ['404' => true];
             }
-            #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
-                if ($allow_sleep) {
-                    \sleep(60);
-                }
-                return 'Request throttled by Lodestone';
-            }
             Errors::error_log(new \RuntimeException('Failed to get all necessary data for Character '.$this->id), $lodestone->getErrors());
             return 'Failed to get all necessary data for Character '.$this->id;
         }
         #Try to get jobs and achievements now, that we got basic information, and there were no issues with it.
-        $data = $lodestone->getCharacterJobs($this->id)->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
+        try {
+            $data = $lodestone->getCharacterJobs($this->id)->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
+        } catch (\Throwable $exception) {
+            if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                if ($allow_sleep) {
+                    #Take a pause if we were throttled, and pause is allowed
+                    \sleep(60);
+                }
+                return 'Request throttled by Lodestone';
+            }
+        }
         $data = $data['characters'][$this->id];
         $data['id'] = $this->id;
         $data['404'] = false;

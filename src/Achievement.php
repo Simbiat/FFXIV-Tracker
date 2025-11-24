@@ -36,7 +36,7 @@ class Achievement extends AbstractTrackerEntity
         #Get general information
         $data = Query::query('SELECT * FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`achievement_id` = :id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
-        if (empty($data)) {
+        if ($data === []) {
             return [];
         }
         #Get last characters with this achievement
@@ -71,7 +71,17 @@ class Achievement extends AbstractTrackerEntity
         }
         #Somewhat simpler and faster processing if we have db_id already
         if (!empty($achievement['db_id'])) {
-            $data = $lodestone->getAchievementFromDB($achievement['db_id'])->getResult();
+            try {
+                $data = $lodestone->getAchievementFromDB($achievement['db_id'])->getResult();
+            } catch (\Throwable $exception) {
+                if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                    if ($allow_sleep) {
+                        #Take a pause if we were throttled, and pause is allowed
+                        \sleep(60);
+                    }
+                    return 'Request throttled by Lodestone';
+                }
+            }
             #Most likely temporary unavailability of the Lodestone page
             if (empty($data['database']['achievement'][$achievement['db_id']])) {
                 return ['404' => true];
@@ -87,13 +97,16 @@ class Achievement extends AbstractTrackerEntity
         }
         #Iterrate list
         foreach ($achievement['characters'] as $char) {
-            $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
-            #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
-                if ($allow_sleep) {
-                    \sleep(60);
+            try {
+                $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
+            } catch (\Throwable $exception) {
+                if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                    if ($allow_sleep) {
+                        #Take a pause if we were throttled, and pause is allowed
+                        \sleep(60);
+                    }
+                    return 'Request throttled by Lodestone';
                 }
-                return 'Request throttled by Lodestone';
             }
             if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && \is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
                 #Try to get achievement ID as seen in Lodestone database (play guide)
@@ -116,10 +129,14 @@ class Achievement extends AbstractTrackerEntity
      */
     private function getDBID(string $search_for): string|null
     {
-        $db_search_result = new Lodestone()->searchDatabase('achievement', 0, 0, $search_for)->getResult();
+        try {
+            $db_search_result = new Lodestone()->searchDatabase('achievement', 0, 0, $search_for)->getResult();
+        } catch (\Throwable) {
+            return null;
+        }
         #Remove counts elements from achievement database
         unset($db_search_result['database']['achievement']['page_current'], $db_search_result['database']['achievement']['page_total'], $db_search_result['database']['achievement']['total']);
-        if (empty($db_search_result)) {
+        if (\count($db_search_result) === 0) {
             return null;
         }
         #Flip the array of achievements (if any) to ease searching for the right element
@@ -219,8 +236,8 @@ class Achievement extends AbstractTrackerEntity
         }
         try {
             return Query::query('INSERT INTO `ffxiv__achievement` SET `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `how_to`=:how_to, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id ON DUPLICATE KEY UPDATE `achievement_id`=:achievement_id, `name`=:name, `icon`=:icon, `points`=:points, `category`=:category, `subcategory`=:subcategory, `how_to`=:how_to, `title`=:title, `item`=:item, `item_icon`=:item_icon, `item_id`=:item_id, `db_id`=:db_id, `updated`=CURRENT_TIMESTAMP()', $bindings);
-        } catch (\Throwable $e) {
-            Errors::error_log($e, 'achievement_id: '.$this->id);
+        } catch (\Throwable $exception) {
+            Errors::error_log($exception, 'achievement_id: '.$this->id);
             return false;
         }
     }

@@ -42,7 +42,7 @@ class FreeCompany extends AbstractTrackerEntity
         #Get general information
         $data = Query::query('SELECT * FROM `ffxiv__freecompany` LEFT JOIN `ffxiv__server` ON `ffxiv__freecompany`.`server_id`=`ffxiv__server`.`server_id` LEFT JOIN `ffxiv__grandcompany` ON `ffxiv__freecompany`.`gc_id`=`ffxiv__grandcompany`.`gc_id` LEFT JOIN `ffxiv__timeactive` ON `ffxiv__freecompany`.`active_id`=`ffxiv__timeactive`.`active_id` LEFT JOIN `ffxiv__estate` ON `ffxiv__freecompany`.`estate_id`=`ffxiv__estate`.`estate_id` LEFT JOIN `ffxiv__city` ON `ffxiv__estate`.`city_id`=`ffxiv__city`.`city_id` WHERE `fc_id`=:id', [':id' => $this->id], return: 'row');
         #Return empty if nothing was found
-        if (empty($data)) {
+        if ($data === []) {
             return [];
         }
         #Get old names
@@ -70,18 +70,23 @@ class FreeCompany extends AbstractTrackerEntity
     public function getFromLodestone(bool $allow_sleep = false): string|array
     {
         $lodestone = new Lodestone();
-        $data = $lodestone->getFreeCompany($this->id)->getFreeCompanyMembers($this->id, 0)->getResult();
+        try {
+            $data = $lodestone->getFreeCompany($this->id)->getFreeCompanyMembers($this->id, 0)->getResult();
+        } catch (\Throwable $exception) {
+            if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+                if ($allow_sleep) {
+                    #Take a pause if we were throttled, and pause is allowed
+                    \sleep(60);
+                }
+                return 'Request throttled by Lodestone';
+            }
+            Errors::error_log($exception, $lodestone->getErrors());
+            return 'Failed to get all necessary data for Free Company '.$this->id;
+        }
         if (empty($data['freecompanies'][$this->id]['server']) || (empty($data['freecompanies'][$this->id]['members']) && (int)($data['freecompanies'][$this->id]['members_count'] ?? 0) > 0) || (!empty($data['freecompanies'][$this->id]['members']) && count($data['freecompanies'][$this->id]['members']) < (int)($data['freecompanies'][$this->id]['members_count'] ?? 0))) {
             if (!empty($data['freecompanies'][$this->id]) && (int)$data['freecompanies'][$this->id] === 404) {
                 $this->delete();
                 return ['404' => true];
-            }
-            #Take a pause if we were throttled, and pause is allowed
-            if (!empty($lodestone->getLastError()['error']) && \preg_match('/Lodestone has throttled the request/', $lodestone->getLastError()['error']) === 1) {
-                if ($allow_sleep) {
-                    \sleep(60);
-                }
-                return 'Request throttled by Lodestone';
             }
             Errors::error_log(new \RuntimeException('Failed to get all necessary data for Free Company '.$this->id), $lodestone->getErrors());
             return 'Failed to get all necessary data for Free Company '.$this->id;
@@ -277,7 +282,7 @@ class FreeCompany extends AbstractTrackerEntity
             #Process members that left the company
             foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
-                if (!isset($this->lodestone['members'][$member])) {
+                if (!\array_key_exists($member, $this->lodestone['members'])) {
                     #Update status for the character
                     $queries[] = [
                         'UPDATE `ffxiv__freecompany_character` SET `current`=0 WHERE `fc_id`=:fc_id AND `character_id`=:character_id;',
