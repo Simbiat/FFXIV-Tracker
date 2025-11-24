@@ -61,7 +61,7 @@ class PvPTeam extends AbstractTrackerEntity
         try {
             $data = $lodestone->getPvPTeam($this->id)->getResult();
         } catch (\Throwable $exception) {
-            if (\preg_match('/Lodestone has throttled the request/', $exception->getMessage()) === 1) {
+            if (\preg_match('/Lodestone has throttled the request/ui', $exception->getMessage()) === 1) {
                 if ($allow_sleep) {
                     #Take a pause if we were throttled, and pause is allowed
                     \sleep(60);
