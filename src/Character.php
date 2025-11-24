@@ -113,7 +113,7 @@ class Character extends AbstractTrackerEntity
             return 'Failed to get all necessary data for Character '.$this->id;
         }
         #Check if the character is private
-        if (\array_key_exists('private', $data['characters'][$this->id]) && $data['characters'][$this->id]['private'] === true) {
+        if (is_array($data['characters'][$this->id]) && \array_key_exists('private', $data['characters'][$this->id]) && $data['characters'][$this->id]['private'] === true) {
             $this->markPrivate();
             return $data['characters'][$this->id];
         }
