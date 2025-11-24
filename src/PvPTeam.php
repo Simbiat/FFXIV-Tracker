@@ -169,7 +169,7 @@ class PvPTeam extends AbstractTrackerEntity
             #Process members that left the team
             foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
-                if (!\array_key_exists($member, $this->lodestone['members'])) {
+                if (!\array_key_exists('members', $this->lodestone) || !\array_key_exists($member, $this->lodestone['members'])) {
                     #Update status for the character
                     $queries[] = [
                         'UPDATE `ffxiv__pvpteam_character` SET `current`=0 WHERE `pvp_id`=:pvp_id AND `character_id`=:character_id;',

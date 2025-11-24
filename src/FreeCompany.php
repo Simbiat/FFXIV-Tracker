@@ -282,7 +282,7 @@ class FreeCompany extends AbstractTrackerEntity
             #Process members that left the company
             foreach ($track_members as $member) {
                 #Check if member from tracker is present in a Lodestone list
-                if (!\array_key_exists($member, $this->lodestone['members'])) {
+                if (!\array_key_exists('members', $this->lodestone) || !\array_key_exists($member, $this->lodestone['members'])) {
                     #Update status for the character
                     $queries[] = [
                         'UPDATE `ffxiv__freecompany_character` SET `current`=0 WHERE `fc_id`=:fc_id AND `character_id`=:character_id;',
