@@ -109,7 +109,9 @@ class Character extends AbstractTrackerEntity
                 }
                 return 'Request throttled by Lodestone';
             }
-            Errors::error_log($exception, $lodestone->getErrors());
+            if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
+                Errors::error_log($exception, $lodestone->getErrors());
+            }
             return 'Failed to get all necessary data for Character '.$this->id;
         }
         #Check if the character is private
@@ -136,6 +138,9 @@ class Character extends AbstractTrackerEntity
                     \sleep(60);
                 }
                 return 'Request throttled by Lodestone';
+            }
+            if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
+                Errors::error_log($exception, $lodestone->getErrors());
             }
         }
         $data = $data['characters'][$this->id];

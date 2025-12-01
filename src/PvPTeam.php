@@ -68,7 +68,9 @@ class PvPTeam extends AbstractTrackerEntity
                 }
                 return 'Request throttled by Lodestone';
             }
-            Errors::error_log($exception, $lodestone->getErrors());
+            if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
+                Errors::error_log($exception, $lodestone->getErrors());
+            }
             return 'Failed to get all necessary data for Character '.$this->id;
         }
         if (empty($data['pvpteams'][$this->id]['data_center']) || empty($data['pvpteams'][$this->id]['members'])) {

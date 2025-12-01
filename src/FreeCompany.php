@@ -80,7 +80,9 @@ class FreeCompany extends AbstractTrackerEntity
                 }
                 return 'Request throttled by Lodestone';
             }
-            Errors::error_log($exception, $lodestone->getErrors());
+            if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
+                Errors::error_log($exception, $lodestone->getErrors());
+            }
             return 'Failed to get all necessary data for Free Company '.$this->id;
         }
         if (empty($data['freecompanies'][$this->id]['server']) || (empty($data['freecompanies'][$this->id]['members']) && (int)($data['freecompanies'][$this->id]['members_count'] ?? 0) > 0) || (!empty($data['freecompanies'][$this->id]['members']) && count($data['freecompanies'][$this->id]['members']) < (int)($data['freecompanies'][$this->id]['members_count'] ?? 0))) {

@@ -81,6 +81,9 @@ class Achievement extends AbstractTrackerEntity
                     }
                     return 'Request throttled by Lodestone';
                 }
+                if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
+                    Errors::error_log($exception, $lodestone->getErrors());
+                }
             }
             #Most likely temporary unavailability of the Lodestone page
             if (empty($data['database']['achievement'][$achievement['db_id']])) {
@@ -106,6 +109,9 @@ class Achievement extends AbstractTrackerEntity
                         \sleep(60);
                     }
                     return 'Request throttled by Lodestone';
+                }
+                if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
+                    Errors::error_log($exception, $lodestone->getErrors());
                 }
             }
             if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && \is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
