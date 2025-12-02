@@ -298,7 +298,7 @@ class Statistics
         /** @lang MariaDB */ '(
                         SELECT \'character\' AS `type`, `chartable`.`character_id` AS `id`, `name`, `avatar` AS `icon`, `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `s`.`server`, `s`.`data_center`
                         FROM (
-                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
+                            SELECT `f`.`character_id`, `f`.`name`, `f`.`avatar`, `f`.`server_id`, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
                             FROM `ffxiv__character` AS `f`
                             WHERE `f`.`deleted` IS NULL AND `hidden` IS NULL
                         ) AS `chartable`
@@ -310,7 +310,7 @@ class Statistics
                     (
                         SELECT \'freecompany\' AS `type`, `fc_id` AS `id`, `name`, NULL AS `icon`, NULL AS `user_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `s`.`server`, `s`.`data_center`
                         FROM (
-                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
+                            SELECT `f`.`fc_id`, `f`.`name`, `f`.`server_id`, `f`.`crest_part_1`, `f`.`crest_part_2`, `f`.`crest_part_3`, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
                             FROM `ffxiv__freecompany` AS `f`
                             WHERE `f`.`deleted` IS NULL
                         ) AS `fctable`
@@ -321,7 +321,7 @@ class Statistics
                     (
                         SELECT \'pvpteam\' AS `type`, `pvp_id` AS `id`, `name`, NULL AS `icon`, NULL AS `user_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `s`.`server`, `s`.`data_center`
                         FROM (
-                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`data_center_id`) AS `dup_count`
+                            SELECT `f`.`pvp_id`, `f`.`name`, `f`.`data_center_id`, `f`.`crest_part_1`, `f`.`crest_part_2`, `f`.`crest_part_3`, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`data_center_id`) AS `dup_count`
                             FROM `ffxiv__pvpteam` AS `f`
                             WHERE `f`.`deleted` IS NULL
                         ) AS `pvptable`
@@ -332,7 +332,7 @@ class Statistics
                     (
                         SELECT IF(`crossworld` = 0, \'linkshell\', \'crossworldlinkshell\') AS `type`, `ls_id` AS `id`, `name`, NULL AS `icon`, NULL AS `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `s`.`server`, `s`.`data_center`
                         FROM (
-                            SELECT `f`.*, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`, `f`.`crossworld`) AS `dup_count`
+                            SELECT `f`.`ls_id`, `f`.`name`, `f`.`server_id`, `f`.`crossworld`, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`, `f`.`crossworld`) AS `dup_count`
                             FROM `ffxiv__linkshell` AS `f`
                             WHERE `f`.`deleted` IS NULL
                         ) AS `lstable`
