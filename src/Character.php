@@ -48,40 +48,40 @@ class Character extends AbstractTrackerEntity
                     unset($data[$key]);
                 }
             }
-            return $data;
-        }
-        #Return empty if nothing was found
-        if ($data === []) {
-            return [];
-        }
-        #Get username if character is linked to a user
-        if (!empty($data['user_id'])) {
-            $data['username'] = Query::query('SELECT `username` FROM `uc__users` WHERE `user_id`=:user_id;', [':user_id' => $data['user_id']], return: 'value');
         } else {
-            $data['username'] = null;
-        }
-        #Get jobs
-        $data['jobs'] = Query::query('SELECT `name`, `level`, `last_change` FROM `ffxiv__character_jobs` LEFT JOIN `ffxiv__jobs` ON `ffxiv__character_jobs`.`job_id`=`ffxiv__jobs`.`job_id` WHERE `ffxiv__character_jobs`.`character_id`=:id ORDER BY `name`;', [':id' => $this->id], return: 'all');
-        #Get old names. For now, returning only the count due to cases of bullying, when the old names are learnt. They are still being collected, though, for statistical purposes.
-        $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__character_names` WHERE `character_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
-        #Get previous known incarnations (combination of gender and race/clan)
-        $data['incarnations'] = Query::query('SELECT `gender`, `ffxiv__clan`.`race`, `ffxiv__clan`.`clan` FROM `ffxiv__character_clans` LEFT JOIN `ffxiv__clan` ON `ffxiv__character_clans`.`clan_id` = `ffxiv__clan`.`clan_id` WHERE `ffxiv__character_clans`.`character_id`=:id AND (`ffxiv__character_clans`.`clan_id`!=:clan_id AND `ffxiv__character_clans`.`gender`!=:gender) ORDER BY `gender` , `race` , `clan` ', [':id' => $this->id, ':clan_id' => $data['clan_id'], ':gender' => $data['gender']], return: 'all');
-        #Get old servers
-        $data['servers'] = Query::query('SELECT `ffxiv__server`.`data_center`, `ffxiv__server`.`server` FROM `ffxiv__character_servers` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`ffxiv__character_servers`.`server_id` WHERE `ffxiv__character_servers`.`character_id`=:id AND `ffxiv__character_servers`.`server_id` != :server_id ORDER BY `data_center` , `server` ', [':id' => $this->id, ':server_id' => $data['server_id']], return: 'all');
-        #Get achievements
-        $data['achievements'] = Query::query('SELECT \'achievement\' AS `type`, `ffxiv__achievement`.`achievement_id` AS `id`, `ffxiv__achievement`.`category`, `ffxiv__achievement`.`subcategory`, `ffxiv__achievement`.`name`, `time`, `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__achievement` ON `ffxiv__character_achievement`.`achievement_id`=`ffxiv__achievement`.`achievement_id` WHERE `ffxiv__character_achievement`.`character_id` = :id AND `ffxiv__achievement`.`category` IS NOT NULL AND `ffxiv__achievement`.`achievement_id` IS NOT NULL ORDER BY `time` DESC, `name` LIMIT 10', [':id' => $this->id], return: 'all');
-        #Get affiliated groups' details
-        $data['groups'] = AbstractTrackerEntity::cleanCrestResults(Query::query(
-        /** @lang SQL */ '(SELECT \'freecompany\' AS `type`, 0 AS `crossworld`, `ffxiv__freecompany_character`.`fc_id` AS `id`, `ffxiv__freecompany`.`name` as `name`, `current`, `ffxiv__freecompany_character`.`rank_id`, `ffxiv__freecompany_rank`.`rankname` AS `rank`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `gc_id` FROM `ffxiv__freecompany_character` LEFT JOIN `ffxiv__freecompany` ON `ffxiv__freecompany_character`.`fc_id`=`ffxiv__freecompany`.`fc_id` LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`fc_id`=`ffxiv__freecompany`.`fc_id` AND `ffxiv__freecompany_character`.`rank_id`=`ffxiv__freecompany_rank`.`rank_id` WHERE `character_id`=:id)
+            #Return empty if nothing was found
+            if ($data === []) {
+                return [];
+            }
+            #Get username if character is linked to a user
+            if (!empty($data['user_id'])) {
+                $data['username'] = Query::query('SELECT `username` FROM `uc__users` WHERE `user_id`=:user_id;', [':user_id' => $data['user_id']], return: 'value');
+            } else {
+                $data['username'] = null;
+            }
+            #Get jobs
+            $data['jobs'] = Query::query('SELECT `name`, `level`, `last_change` FROM `ffxiv__character_jobs` LEFT JOIN `ffxiv__jobs` ON `ffxiv__character_jobs`.`job_id`=`ffxiv__jobs`.`job_id` WHERE `ffxiv__character_jobs`.`character_id`=:id ORDER BY `name`;', [':id' => $this->id], return: 'all');
+            #Get old names. For now, returning only the count due to cases of bullying, when the old names are learnt. They are still being collected, though, for statistical purposes.
+            $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__character_names` WHERE `character_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
+            #Get previous known incarnations (combination of gender and race/clan)
+            $data['incarnations'] = Query::query('SELECT `gender`, `ffxiv__clan`.`race`, `ffxiv__clan`.`clan` FROM `ffxiv__character_clans` LEFT JOIN `ffxiv__clan` ON `ffxiv__character_clans`.`clan_id` = `ffxiv__clan`.`clan_id` WHERE `ffxiv__character_clans`.`character_id`=:id AND (`ffxiv__character_clans`.`clan_id`!=:clan_id AND `ffxiv__character_clans`.`gender`!=:gender) ORDER BY `gender` , `race` , `clan` ', [':id' => $this->id, ':clan_id' => $data['clan_id'], ':gender' => $data['gender']], return: 'all');
+            #Get old servers
+            $data['servers'] = Query::query('SELECT `ffxiv__server`.`data_center`, `ffxiv__server`.`server` FROM `ffxiv__character_servers` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`ffxiv__character_servers`.`server_id` WHERE `ffxiv__character_servers`.`character_id`=:id AND `ffxiv__character_servers`.`server_id` != :server_id ORDER BY `data_center` , `server` ', [':id' => $this->id, ':server_id' => $data['server_id']], return: 'all');
+            #Get achievements
+            $data['achievements'] = Query::query('SELECT \'achievement\' AS `type`, `ffxiv__achievement`.`achievement_id` AS `id`, `ffxiv__achievement`.`category`, `ffxiv__achievement`.`subcategory`, `ffxiv__achievement`.`name`, `time`, `icon` FROM `ffxiv__character_achievement` LEFT JOIN `ffxiv__achievement` ON `ffxiv__character_achievement`.`achievement_id`=`ffxiv__achievement`.`achievement_id` WHERE `ffxiv__character_achievement`.`character_id` = :id AND `ffxiv__achievement`.`category` IS NOT NULL AND `ffxiv__achievement`.`achievement_id` IS NOT NULL ORDER BY `time` DESC, `name` LIMIT 10', [':id' => $this->id], return: 'all');
+            #Get affiliated groups' details
+            $data['groups'] = AbstractTrackerEntity::cleanCrestResults(Query::query(
+            /** @lang SQL */ '(SELECT \'freecompany\' AS `type`, 0 AS `crossworld`, `ffxiv__freecompany_character`.`fc_id` AS `id`, `ffxiv__freecompany`.`name` AS `name`, `current`, `ffxiv__freecompany_character`.`rank_id`, `ffxiv__freecompany_rank`.`rankname` AS `rank`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `gc_id` FROM `ffxiv__freecompany_character` LEFT JOIN `ffxiv__freecompany` ON `ffxiv__freecompany_character`.`fc_id`=`ffxiv__freecompany`.`fc_id` LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`fc_id`=`ffxiv__freecompany`.`fc_id` AND `ffxiv__freecompany_character`.`rank_id`=`ffxiv__freecompany_rank`.`rank_id` WHERE `character_id`=:id)
             UNION ALL
-            (SELECT \'linkshell\' AS `type`, `crossworld`, `ffxiv__linkshell_character`.`ls_id` AS `id`, `ffxiv__linkshell`.`name` as `name`, `current`, `ffxiv__linkshell_character`.`rank_id`, `ffxiv__linkshell_rank`.`rank` AS `rank`, null as `crest_part_1`, null as `crest_part_2`, null as `crest_part_3`, null as `gc_id` FROM `ffxiv__linkshell_character` LEFT JOIN `ffxiv__linkshell` ON `ffxiv__linkshell_character`.`ls_id`=`ffxiv__linkshell`.`ls_id` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_character`.`rank_id`=`ffxiv__linkshell_rank`.`ls_rank_id` WHERE `character_id`=:id)
+            (SELECT \'linkshell\' AS `type`, `crossworld`, `ffxiv__linkshell_character`.`ls_id` AS `id`, `ffxiv__linkshell`.`name` AS `name`, `current`, `ffxiv__linkshell_character`.`rank_id`, `ffxiv__linkshell_rank`.`rank` AS `rank`, NULL AS `crest_part_1`, NULL AS `crest_part_2`, NULL AS `crest_part_3`, NULL AS `gc_id` FROM `ffxiv__linkshell_character` LEFT JOIN `ffxiv__linkshell` ON `ffxiv__linkshell_character`.`ls_id`=`ffxiv__linkshell`.`ls_id` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_character`.`rank_id`=`ffxiv__linkshell_rank`.`ls_rank_id` WHERE `character_id`=:id)
             UNION ALL
-            (SELECT \'pvpteam\' AS `type`, 1 AS `crossworld`, `ffxiv__pvpteam_character`.`pvp_id` AS `id`, `ffxiv__pvpteam`.`name` as `name`, `current`, `ffxiv__pvpteam_character`.`rank_id`, `ffxiv__pvpteam_rank`.`rank` AS `rank`, `crest_part_1`, `crest_part_2`, `crest_part_3`, null as `gc_id` FROM `ffxiv__pvpteam_character` LEFT JOIN `ffxiv__pvpteam` ON `ffxiv__pvpteam_character`.`pvp_id`=`ffxiv__pvpteam`.`pvp_id` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_character`.`rank_id`=`ffxiv__pvpteam_rank`.`pvp_rank_id` WHERE `character_id`=:id)
+            (SELECT \'pvpteam\' AS `type`, 1 AS `crossworld`, `ffxiv__pvpteam_character`.`pvp_id` AS `id`, `ffxiv__pvpteam`.`name` AS `name`, `current`, `ffxiv__pvpteam_character`.`rank_id`, `ffxiv__pvpteam_rank`.`rank` AS `rank`, `crest_part_1`, `crest_part_2`, `crest_part_3`, NULL AS `gc_id` FROM `ffxiv__pvpteam_character` LEFT JOIN `ffxiv__pvpteam` ON `ffxiv__pvpteam_character`.`pvp_id`=`ffxiv__pvpteam`.`pvp_id` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_character`.`rank_id`=`ffxiv__pvpteam_rank`.`pvp_rank_id` WHERE `character_id`=:id)
             ORDER BY `current` DESC, `name`;',
-            [':id' => $this->id], return: 'all'
-        ));
-        #Clean up the data from unnecessary (technical) clutter
-        unset($data['clan_id'], $data['nameday_id'], $data['achievement_id'], $data['category'], $data['subcategory'], $data['how_to'], $data['points'], $data['icon'], $data['item'], $data['item_icon'], $data['item_id'], $data['server_id']);
+                [':id' => $this->id], return: 'all'
+            ));
+            #Clean up the data from unnecessary (technical) clutter
+            unset($data['clan_id'], $data['nameday_id'], $data['achievement_id'], $data['category'], $data['subcategory'], $data['how_to'], $data['points'], $data['icon'], $data['item'], $data['item_icon'], $data['item_id'], $data['server_id']);
+        }
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
         if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'character'], 'message' => 'Updating character with ID '.$this->id, 'priority' => 1])->add();
