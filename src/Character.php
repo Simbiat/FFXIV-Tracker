@@ -371,16 +371,16 @@ class Character extends AbstractTrackerEntity
                                 ':points' => $item['points'],
                             ],
                         ];
+                        $queries[] = [
+                            'INSERT INTO `ffxiv__character_achievement` SET `character_id`=:character_id, `achievement_id`=:achievement_id, `time`=:time ON DUPLICATE KEY UPDATE `time`=:time;',
+                            [
+                                ':character_id' => $this->id,
+                                ':achievement_id' => $achievement_id,
+                                ':time' => [$item['time'], 'datetime'],
+                            ],
+                        ];
                         #If the achievement is new since the last check, or if this is the first time the character is being processed, add and count the achievement
                         if (!empty($updated) && (int)$item['time'] > \strtotime($updated)) {
-                            $queries[] = [
-                                'INSERT INTO `ffxiv__character_achievement` SET `character_id`=:character_id, `achievement_id`=:achievement_id, `time`=:time ON DUPLICATE KEY UPDATE `time`=:time;',
-                                [
-                                    ':character_id' => $this->id,
-                                    ':achievement_id' => $achievement_id,
-                                    ':time' => [$item['time'], 'datetime'],
-                                ],
-                            ];
                             $queries[] = [
                                 'UPDATE `ffxiv__achievement` SET `earned_by`=`earned_by`+1 WHERE `achievement_id`=:achievement_id;',
                                 [
@@ -578,6 +578,9 @@ class Character extends AbstractTrackerEntity
      */
     public function cleanAchievements(): bool
     {
+        #Server should no longer be restricted by RAM, and main issue with performance was fixed by separate counter, too. So trying to keep all achievements again.
+        #But keeping this for now, in case some issues will arise still
+        return true;
         try {
             #Get achievements to remove
             $to_remove = Query::query(
