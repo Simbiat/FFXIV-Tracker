@@ -239,7 +239,7 @@ class Character extends AbstractTrackerEntity
             #Insert Free Companies and PvP Team if they are not registered
             if ($this->lodestone['free_company']['id'] !== NULL && $this->lodestone['free_company']['registered'] === false) {
                 $queries[] = [
-                    'INSERT IGNORE INTO `ffxiv__freecompany` (`fc_id`, `name`, `server_id`, `updated`) VALUES (:fc_id, :fc_name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()));',
+                    'INSERT IGNORE INTO `ffxiv__freecompany` (`fc_id`, `name`, `server_id`, `updated`) VALUES (:fc_id, :fc_name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)));',
                     [
                         ':fc_id' => $this->lodestone['free_company']['id'],
                         ':fc_name' => $this->lodestone['free_company']['name'],
@@ -249,7 +249,7 @@ class Character extends AbstractTrackerEntity
             }
             if ($this->lodestone['pvp']['id'] !== NULL && $this->lodestone['pvp']['registered'] === false) {
                 $queries[] = [
-                    'INSERT IGNORE INTO `ffxiv__pvpteam` (`pvp_id`, `name`, `data_center_id`, `updated`) VALUES (:pvp_id, :pvp_name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()));',
+                    'INSERT IGNORE INTO `ffxiv__pvpteam` (`pvp_id`, `name`, `data_center_id`, `updated`) VALUES (:pvp_id, :pvp_name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)));',
                     [
                         ':pvp_id' => $this->lodestone['pvp']['id'],
                         ':pvp_name' => $this->lodestone['pvp']['name'],
@@ -275,10 +275,10 @@ class Character extends AbstractTrackerEntity
                     `character_id`, `server_id`, `name`, `registered`, `updated`, `hidden`, `deleted`, `biography`, `title_id`, `avatar`, `clan_id`, `gender`, `nameday_id`, `guardian_id`, `city_id`, `gc_rank_id`, `pvp_matches`, `achievement_points`
                 )
                 VALUES (
-                    :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, UTC_DATE(), CURRENT_TIMESTAMP(), NULL, NULL, :biography, (SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), :avatar, (SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), :gender, (SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), (SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), (SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), 0, :achievement_points
+                    :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_DATE(), CURRENT_TIMESTAMP(6), NULL, NULL, :biography, (SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), :avatar, (SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), :gender, (SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), (SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), (SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), 0, :achievement_points
                 )
                 ON DUPLICATE KEY UPDATE
-                    `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `name`=:name, `updated`=CURRENT_TIMESTAMP(), `hidden`=NULL, `deleted`=NULL, `biography`=:biography, `title_id`=(SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), `avatar`=:avatar, `clan_id`=(SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), `gender`=:gender, `nameday_id`=(SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), `guardian_id`=(SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), `city_id`=(SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id`=(SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank` IS NOT NULL AND `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), `achievement_points`=:achievement_points;',
+                    `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `name`=:name, `updated`=CURRENT_TIMESTAMP(6), `hidden`=NULL, `deleted`=NULL, `biography`=:biography, `title_id`=(SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), `avatar`=:avatar, `clan_id`=(SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), `gender`=:gender, `nameday_id`=(SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), `guardian_id`=(SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), `city_id`=(SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id`=(SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank` IS NOT NULL AND `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), `achievement_points`=:achievement_points;',
                 [
                     ':character_id' => $this->id,
                     ':server' => $this->lodestone['server'],
@@ -306,7 +306,7 @@ class Character extends AbstractTrackerEntity
                     #Update level, but only if it's more than 0
                     if ((int)$level['level'] > 0) {
                         $queries[] = [
-                            'INSERT INTO `ffxiv__character_jobs` (`character_id`, `job_id`, `level`, `last_change`) VALUES (:character_id, (SELECT `job_id` FROM `ffxiv__jobs` WHERE `name`=:jobname), :level, CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE `level`=:level, `last_change`=IF(`level`=:level, `last_change`, CURRENT_TIMESTAMP());',
+                            'INSERT INTO `ffxiv__character_jobs` (`character_id`, `job_id`, `level`, `last_change`) VALUES (:character_id, (SELECT `job_id` FROM `ffxiv__jobs` WHERE `name`=:jobname), :level, CURRENT_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE `level`=:level, `last_change`=IF(`level`=:level, `last_change`, CURRENT_TIMESTAMP(6));',
                             [
                                 ':character_id' => $this->id,
                                 ':jobname' => $job,
@@ -428,7 +428,7 @@ class Character extends AbstractTrackerEntity
             if (!empty($this->lodestone['server']) && !empty($this->lodestone['name']) && !empty($this->lodestone['avatar'])) {
                 $queries = [];
                 $queries[] = [
-                    'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `character_id` = :character_id',
+                    'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id',
                     [
                         ':character_id' => $this->id,
                         ':server' => $this->lodestone['server'],
@@ -440,7 +440,7 @@ class Character extends AbstractTrackerEntity
                 return Query::query($queries);
             }
             $result = Query::query(
-                'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `character_id` = :character_id',
+                'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id',
                 [':character_id' => $this->id],
             );
             #Also try cleaning achievements, but it does not matter much if it fails
@@ -511,7 +511,7 @@ class Character extends AbstractTrackerEntity
             ];
             #Update character
             $queries[] = [
-                'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `character_id` = :id',
+                'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :id',
                 [':id' => $this->id],
             ];
             $result = Query::query($queries);

@@ -135,7 +135,7 @@ class Linkshell extends AbstractTrackerEntity
             #If the `empty` flag is set, it means that the Lodestone page is empty, so we can't update anything besides name, data center and formed date
             if (\array_key_exists('empty', $this->lodestone) && $this->lodestone['empty'] === true) {
                 $queries[] = [
-                    'UPDATE `ffxiv__linkshell` SET `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL WHERE `ls_id`=:ls_id',
+                    'UPDATE `ffxiv__linkshell` SET `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL WHERE `ls_id`=:ls_id',
                     [
                         ':ls_id' => $this->id,
                         ':name' => $this->lodestone['name'],
@@ -149,7 +149,7 @@ class Linkshell extends AbstractTrackerEntity
             } else {
                 #Main query to insert or update a Linkshell
                 $queries[] = [
-                    'INSERT INTO `ffxiv__linkshell`(`ls_id`, `name`, `crossworld`, `formed`, `registered`, `updated`, `deleted`, `server_id`, `community_id`) VALUES (:ls_id, :name, :crossworld, :formed, UTC_DATE(), CURRENT_TIMESTAMP(), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), :community_id) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(), `deleted`=NULL, `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), `community_id`=:community_id;',
+                    'INSERT INTO `ffxiv__linkshell`(`ls_id`, `name`, `crossworld`, `formed`, `registered`, `updated`, `deleted`, `server_id`, `community_id`) VALUES (:ls_id, :name, :crossworld, :formed, CURRENT_DATE(), CURRENT_TIMESTAMP(6), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), :community_id) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL, `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), `community_id`=:community_id;',
                     [
                         ':ls_id' => $this->id,
                         ':server' => $this->lodestone['server'] ?? $this->lodestone['data_center'],
@@ -202,7 +202,7 @@ class Linkshell extends AbstractTrackerEntity
                             `character_id`, `server_id`, `name`, `registered`, `updated`, `avatar`, `gc_rank_id`
                         )
                         VALUES (
-                            :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, UTC_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP()), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1)
+                            :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1)
                         ) ON DUPLICATE KEY UPDATE `deleted`=NULL;',
                             [
                                 ':character_id' => $member,
@@ -252,7 +252,7 @@ class Linkshell extends AbstractTrackerEntity
             ];
             #Update linkshell
             $queries[] = [
-                'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, UTC_DATE()), `updated`=CURRENT_TIMESTAMP() WHERE `ls_id` = :id',
+                'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `ls_id` = :id',
                 [':id' => $this->id],
             ];
             return Query::query($queries);
