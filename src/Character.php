@@ -6,6 +6,7 @@ namespace Simbiat\FFXIV;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\Website\Config;
+use Simbiat\Website\Enums\LogTypes;
 use Simbiat\Website\Errors;
 use Simbiat\Website\HomePage;
 use Simbiat\Website\Images;
@@ -563,7 +564,7 @@ class Character extends AbstractTrackerEntity
                 'INSERT IGNORE INTO `uc__user_to_ff_character` (`user_id`, `character_id`) VALUES (:user_id, :character_id);', [':user_id' => $_SESSION['user_id'], ':character_id' => $this->id],
                 'INSERT IGNORE INTO `uc__user_to_group` (`user_id`, `group_id`) VALUES (:user_id, :group_id);', [':user_id' => $_SESSION['user_id'], ':group_id' => [Config::GROUP_IDS['Linked to FF'], 'int']],
             ]);
-            Security::log('User details change', 'Attempted to link FFXIV character', ['id' => $this->id, 'result' => $result]);
+            Security::log(LogTypes::UserDetailsChanged->value, 'Attempted to link FFXIV character', ['id' => $this->id, 'result' => $result]);
             #Download avatar
             new User($_SESSION['user_id'])->addAvatar(false, 'https://img2.finalfantasyxiv.com/f/'.$this->avatar_id.'c0.jpg', $this->id);
             return ['response' => $result];
