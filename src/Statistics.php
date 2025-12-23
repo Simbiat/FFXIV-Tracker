@@ -25,11 +25,10 @@ class Statistics
     /**
      * @param string $type
      *
-     * @return array
      * @throws \JsonException
      * @throws \Exception
      */
-    public function update(#[ExpectedValues(self::STATISTICS_TYPE)] string $type = 'other'): array
+    public function update(#[ExpectedValues(self::STATISTICS_TYPE)] string $type = 'other'): void
     {
         $data = [];
         #Sanitize type
@@ -70,7 +69,6 @@ class Statistics
         if ($type === 'bugs') {
             $this->scheduleBugs($data);
         }
-        return $data;
     }
     
     /**
