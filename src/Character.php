@@ -6,13 +6,13 @@ namespace Simbiat\FFXIV;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\Website\Config;
+use Simbiat\Website\Entities\User;
 use Simbiat\Website\Enums\LogTypes;
 use Simbiat\Website\Errors;
 use Simbiat\Website\HomePage;
 use Simbiat\Website\Images;
 use Simbiat\Website\Sanitization;
 use Simbiat\Website\Security;
-use Simbiat\Website\usercontrol\User;
 use function is_array;
 
 /**
