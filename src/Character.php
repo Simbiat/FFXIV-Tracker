@@ -101,7 +101,7 @@ class Character extends AbstractTrackerEntity
     {
         $lodestone = (new Lodestone());
         try {
-            $data = $lodestone->getCharacter($this->id)->getResult(false);
+            $data = $lodestone->getCharacter($this->id)->getResult();
         } catch (\Throwable $exception) {
             if (\preg_match('/Lodestone has throttled the request/ui', $exception->getMessage()) === 1) {
                 if ($allow_sleep) {
