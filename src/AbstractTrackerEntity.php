@@ -234,7 +234,7 @@ abstract class AbstractTrackerEntity
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
-                    $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::ENTITY_TYPE.'_character` LEFT JOIN `uc__user_to_ff_character` ON `ffxiv__'.$this::ENTITY_TYPE.'_character`.`character_id`=`uc__user_to_ff_character`.`character_id` WHERE `'.$id_column.'` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
+                    $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::ENTITY_TYPE.'_character` WHERE `character_id` IN (SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `user_id`=:user_id)', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
                     if (!$check) {
                         return ['http_error' => 403, 'reason' => 'Group not linked to user'];
                     }

@@ -294,14 +294,13 @@ class Statistics
         #Get entities with duplicate names
         $duplicate_names = Query::query(
         /** @lang MariaDB */ '(
-                        SELECT \'character\' AS `type`, `chartable`.`character_id` AS `id`, `name`, `avatar` AS `icon`, `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `s`.`server`, `s`.`data_center`
+                        SELECT \'character\' AS `type`, `chartable`.`character_id` AS `id`, `name`, `avatar` AS `icon`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE `uc__user_to_ff_character`.`character_id`=`chartable`.`character_id`) AS `user_id`, NULL as `crest_part_1`, NULL as `crest_part_2`, NULL as `crest_part_3`, `s`.`server`, `s`.`data_center`
                         FROM (
                             SELECT `f`.`character_id`, `f`.`name`, `f`.`avatar`, `f`.`server_id`, COUNT(*) OVER (PARTITION BY `f`.`name`, `f`.`server_id`) AS `dup_count`
                             FROM `ffxiv__character` AS `f`
                             WHERE `f`.`deleted` IS NULL AND `hidden` IS NULL
                         ) AS `chartable`
                         LEFT JOIN `ffxiv__server` AS `s` ON `s`.`server_id` = `chartable`.`server_id`
-                        LEFT JOIN `uc__user_to_ff_character` ON `uc__user_to_ff_character`.`character_id`=`chartable`.`character_id`
                         WHERE `chartable`.`dup_count` > 1
                     )
                     UNION ALL
