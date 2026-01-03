@@ -29,9 +29,12 @@ class Achievement extends AbstractTrackerEntity
     
     /**
      * Function to get initial data from DB
-     * @throws \Exception
+     *
+     * @param bool $non_private Whether selection of characters is only for non-private characters
+     *
+     * @return array
      */
-    protected function getFromDB(): array
+    protected function getFromDB(bool $non_private = false): array
     {
         #Get general information
         $data = Query::query('SELECT * FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`achievement_id` = :id', [':id' => $this->id], return: 'row');
@@ -54,6 +57,7 @@ class Achievement extends AbstractTrackerEntity
                                                             LIMIT 50
                                                          ) AS ca
                                                       ON c.`character_id` = ca.`character_id`
+                                                    WHERE c.`hidden_achievements` IS NULL
                                                     ORDER BY c.`name`;',
             [':id' => $this->id], return: 'all');
         #Register for an update if old enough or category or how_to or db_id are empty. Also check that this is not a bot.
@@ -73,8 +77,7 @@ class Achievement extends AbstractTrackerEntity
      */
     public function getFromLodestone(bool $allow_sleep = false): string|array
     {
-        #Get the data that we have
-        $achievement = $this->getFromDB();
+        $achievement = $this->getFromDB(true);
         if (empty($achievement['name'])) {
             return ['404' => true, 'reason' => 'Achievement with ID `'.$this->id.'` is not found on Tracker'];
         }
@@ -114,6 +117,7 @@ class Achievement extends AbstractTrackerEntity
             return ['404' => true];
         }
         #Iterrate list
+        $achievement['characters'] = [['id' => 1]];
         foreach ($achievement['characters'] as $char) {
             try {
                 $data = $lodestone->getCharacterAchievements($char['id'], (int)$this->id)->getResult();
@@ -128,6 +132,16 @@ class Achievement extends AbstractTrackerEntity
                 if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
                     Errors::error_log($exception, $lodestone->getErrors());
                 }
+                return $exception->getMessage();
+            }
+            if (\array_key_exists('private', $data['characters'][$char['id']]['achievements']) && $data['characters'][$char['id']]['achievements']['private']) {
+                #Mark character as having private achievements
+                try {
+                    Query::query('UPDATE `ffxiv__character` SET `hidden_achievements`=CURRENT_TIMESTAMP(6) WHERE `character_id`=:id;', [':id' => $char['id']]);
+                } catch (\Throwable $exception) {
+                    Errors::error_log($exception);
+                }
+                continue;
             }
             if (!empty($data['characters'][$char['id']]['achievements'][$this->id]) && \is_array($data['characters'][$char['id']]['achievements'][$this->id])) {
                 #Try to get achievement ID as seen in Lodestone database (play guide)

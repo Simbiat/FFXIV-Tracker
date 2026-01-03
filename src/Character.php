@@ -32,6 +32,8 @@ class Character extends AbstractTrackerEntity
     public array $groups = [];
     public array $jobs = [];
     public array $achievements = [];
+    public array $friends = [];
+    public array $following = [];
     public int $achievement_points = 0;
     public array $owned = [];
     
@@ -70,6 +72,10 @@ class Character extends AbstractTrackerEntity
             $data['servers'] = Query::query('SELECT `ffxiv__server`.`data_center`, `ffxiv__server`.`server` FROM `ffxiv__character_servers` LEFT JOIN `ffxiv__server` ON `ffxiv__server`.`server_id`=`ffxiv__character_servers`.`server_id` WHERE `ffxiv__character_servers`.`character_id`=:id AND `ffxiv__character_servers`.`server_id` != :server_id ORDER BY `data_center` , `server` ', [':id' => $this->id, ':server_id' => $data['server_id']], return: 'all');
             #Get achievements
             $data['achievements'] = Query::query('SELECT \'achievement\' AS `type`, `achievement_id` AS `id`, `category`, `subcategory`,`name`, (SELECT `time` FROM `ffxiv__character_achievement` WHERE `character_id` = :id AND `ffxiv__character_achievement`.`achievement_id`=`ffxiv__achievement`.`achievement_id`) AS `time`, `icon` FROM `ffxiv__achievement` WHERE `ffxiv__achievement`.`category` IS NOT NULL AND `achievement_id` IN (SELECT `achievement_id` FROM `ffxiv__character_achievement` WHERE `character_id` = :id) ORDER BY `time` DESC, `name` LIMIT 10;', [':id' => $this->id], return: 'all');
+            #Get friends
+            $data['friends'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__character_friends`.`friend` AS `id`, `ffxiv__character`.`name` AS `name`, `avatar` AS `icon`, `current` FROM `ffxiv__character_friends` LEFT JOIN `ffxiv__character` ON `ffxiv__character_friends`.`friend`=`ffxiv__character`.`character_id` WHERE `ffxiv__character_friends`.`character_id`=:id', [':id' => $this->id], return: 'all');
+            #Get characters being followed by the character
+            $data['following'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__character_following`.`following` AS `id`, `ffxiv__character`.`name` AS `name`, `avatar` AS `icon`, `current` FROM `ffxiv__character_following` LEFT JOIN `ffxiv__character` ON `ffxiv__character_following`.`following`=`ffxiv__character`.`character_id` WHERE `ffxiv__character_following`.`character_id`=:id', [':id' => $this->id], return: 'all');
             #Get affiliated groups' details
             $data['groups'] = AbstractTrackerEntity::cleanCrestResults(Query::query(
             /** @lang SQL */ '(SELECT \'freecompany\' AS `type`, 0 AS `crossworld`, `ffxiv__freecompany_character`.`fc_id` AS `id`, `ffxiv__freecompany`.`name` AS `name`, `current`, `ffxiv__freecompany_character`.`rank_id`, `ffxiv__freecompany_rank`.`rankname` AS `rank`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `gc_id` FROM `ffxiv__freecompany_character` LEFT JOIN `ffxiv__freecompany` ON `ffxiv__freecompany_character`.`fc_id`=`ffxiv__freecompany`.`fc_id` LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`fc_id`=`ffxiv__freecompany`.`fc_id` AND `ffxiv__freecompany_character`.`rank_id`=`ffxiv__freecompany_rank`.`rank_id` WHERE `character_id`=:id)
@@ -118,7 +124,6 @@ class Character extends AbstractTrackerEntity
         #Check if the character is private
         if (!empty($data['characters'][$this->id]) && is_array($data['characters'][$this->id]) && \array_key_exists('private', $data['characters'][$this->id]) && $data['characters'][$this->id]['private'] === true) {
             $this->markPrivate();
-            return $data['characters'][$this->id];
         }
         #Check for possible errors
         if (empty($data['characters'][$this->id]['server'])) {
@@ -131,7 +136,11 @@ class Character extends AbstractTrackerEntity
         }
         #Try to get jobs and achievements now, that we got basic information, and there were no issues with it.
         try {
-            $data = $lodestone->getCharacterJobs($this->id)->getCharacterAchievements($this->id, false, 0, false, false, true)->getResult();
+            $data = $lodestone->getCharacterJobs($this->id)
+                ->getCharacterFriends($this->id, 0)
+                ->getCharacterFollowing($this->id, 0)
+                ->getCharacterAchievements($this->id, false, 0, false, false, true)
+                ->getResult();
         } catch (\Throwable $exception) {
             if (\preg_match('/Lodestone has throttled the request/ui', $exception->getMessage()) === 1) {
                 if ($allow_sleep) {
@@ -144,6 +153,7 @@ class Character extends AbstractTrackerEntity
                 Errors::error_log($exception, $lodestone->getErrors());
             }
         }
+        unset($data['characters'][$this->id]['page_current'], $data['characters'][$this->id]['page_total'], $data['characters'][$this->id]['members_count']);
         $data = $data['characters'][$this->id];
         $data['id'] = $this->id;
         $data['404'] = false;
@@ -199,12 +209,20 @@ class Character extends AbstractTrackerEntity
         ];
         $this->pvp = (int)($from_db['pvp_matches'] ?? 0);
         $this->groups = $from_db['groups'] ?? [];
+        $this->friends = $from_db['friends'] ?? [];
+        $this->following = $from_db['following'] ?? [];
         $this->owned = [
             'id' => $from_db['user_id'] ?? null,
             'name' => $from_db['username'] ?? null
         ];
         foreach ($this->groups as $key => $group) {
             $this->groups[$key]['current'] = (bool)$group['current'];
+        }
+        foreach ($this->friends as $key => $character) {
+            $this->friends[$key]['current'] = (bool)$character['current'];
+        }
+        foreach ($this->following as $key => $character) {
+            $this->following[$key]['current'] = (bool)$character['current'];
         }
         $this->achievements = $from_db['achievements'] ?? [];
         foreach ($this->achievements as $key => $achievement) {
@@ -265,21 +283,44 @@ class Character extends AbstractTrackerEntity
             }
             #Get total achievements points. Using foreach for speed
             $achievement_points = 0;
+            $hidden_achievements = false;
             if (!empty($this->lodestone['achievements']) && is_array($this->lodestone['achievements'])) {
-                foreach ($this->lodestone['achievements'] as $item) {
-                    $achievement_points += (int)$item['points'];
+                if (\array_key_exists('private', $this->lodestone['achievements']) && $this->lodestone['achievements']['private']) {
+                    $hidden_achievements = true;
+                } else {
+                    unset($this->lodestone['achievements']['private']);
+                    foreach ($this->lodestone['achievements'] as $item) {
+                        $achievement_points += (int)$item['points'];
+                    }
+                }
+            }
+            #Check friends/following lists
+            $hidden_friends = false;
+            $hidden_following = false;
+            if (!empty($this->lodestone['friends']) && is_array($this->lodestone['friends'])) {
+                if (\array_key_exists('private', $this->lodestone['friends']) && $this->lodestone['friends']['private']) {
+                    $hidden_friends = true;
+                } else {
+                    unset($this->lodestone['friends']['private']);
+                }
+            }
+            if (!empty($this->lodestone['following']) && is_array($this->lodestone['following'])) {
+                if (\array_key_exists('private', $this->lodestone['following']) && $this->lodestone['following']['private']) {
+                    $hidden_following = true;
+                } else {
+                    unset($this->lodestone['following']['private']);
                 }
             }
             #Main query to insert or update a character
             $queries[] = [
                 'INSERT INTO `ffxiv__character`(
-                    `character_id`, `server_id`, `name`, `registered`, `updated`, `hidden`, `deleted`, `biography`, `title_id`, `avatar`, `clan_id`, `gender`, `nameday_id`, `guardian_id`, `city_id`, `gc_rank_id`, `pvp_matches`, `achievement_points`
+                    `character_id`, `server_id`, `name`, `registered`, `updated`, `hidden`, `hidden_achievements`, `hidden_friends`, `hidden_following`, `deleted`, `biography`, `title_id`, `avatar`, `clan_id`, `gender`, `nameday_id`, `guardian_id`, `city_id`, `gc_rank_id`, `pvp_matches`, `achievement_points`
                 )
                 VALUES (
-                    :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_DATE(), CURRENT_TIMESTAMP(6), NULL, NULL, :biography, (SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), :avatar, (SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), :gender, (SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), (SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), (SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), 0, :achievement_points
+                    :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), NULL, :hidden_achievements, :hidden_friends, :hidden_following, NULL, :biography, (SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), :avatar, (SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), :gender, (SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), (SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), (SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), 0, :achievement_points
                 )
                 ON DUPLICATE KEY UPDATE
-                    `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `name`=:name, `updated`=CURRENT_TIMESTAMP(6), `hidden`=NULL, `deleted`=NULL, `biography`=:biography, `title_id`=(SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), `avatar`=:avatar, `clan_id`=(SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), `gender`=:gender, `nameday_id`=(SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), `guardian_id`=(SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), `city_id`=(SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id`=(SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank` IS NOT NULL AND `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), `achievement_points`=:achievement_points;',
+                    `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `name`=:name, `updated`=CURRENT_TIMESTAMP(6), `hidden`=NULL, `hidden_achievements`=:hidden_achievements, `hidden_friends`=:hidden_friends, `hidden_following`=:hidden_following, `deleted`=NULL, `biography`=:biography, `title_id`=(SELECT `achievement_id` as `title_id` FROM `ffxiv__achievement` WHERE `title` IS NOT NULL AND `title`=:title LIMIT 1), `avatar`=:avatar, `clan_id`=(SELECT `clan_id` FROM `ffxiv__clan` WHERE `clan`=:clan), `gender`=:gender, `nameday_id`=(SELECT `nameday_id` FROM `ffxiv__nameday` WHERE `nameday`=:nameday), `guardian_id`=(SELECT `guardian_id` FROM `ffxiv__guardian` WHERE `guardian`=:guardian), `city_id`=(SELECT `city_id` FROM `ffxiv__city` WHERE `city`=:city), `gc_rank_id`=(SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank` IS NOT NULL AND `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), `achievement_points`=:achievement_points;',
                 [
                     ':character_id' => $this->id,
                     ':server' => $this->lodestone['server'],
@@ -296,7 +337,10 @@ class Character extends AbstractTrackerEntity
                     ':guardian' => $this->lodestone['guardian']['name'],
                     ':city' => $this->lodestone['city']['name'],
                     ':gcRank' => (empty($this->lodestone['grand_company']['rank']) ? '' : $this->lodestone['grand_company']['rank']),
-                    ':achievement_points' => [$achievement_points, 'int']
+                    ':achievement_points' => [$achievement_points, 'int'],
+                    ':hidden_achievements' => [$hidden_achievements ? \microtime(true) : null, $hidden_achievements ? 'datetime' : 'null'],
+                    ':hidden_friends' => [$hidden_friends ? \microtime(true) : null, $hidden_friends ? 'datetime' : 'null'],
+                    ':hidden_following' => [$hidden_following ? \microtime(true) : null, $hidden_following ? 'datetime' : 'null'],
                 ],
             ];
             #Update levels. Doing this in a cycle since columns can vary. This can reduce performance, but so far this is the best idea I have to make it as automated as possible
@@ -352,7 +396,7 @@ class Character extends AbstractTrackerEntity
                 ],
             ];
             #Achievements
-            if (!empty($this->lodestone['achievements']) && is_array($this->lodestone['achievements'])) {
+            if (!$hidden_achievements && !empty($this->lodestone['achievements']) && is_array($this->lodestone['achievements'])) {
                 foreach ($this->lodestone['achievements'] as $achievement_id => $item) {
                     $icon = self::removeLodestoneDomain($item['icon']);
                     #Download the icon if it's not already present
@@ -392,10 +436,50 @@ class Character extends AbstractTrackerEntity
                     }
                 }
             }
+            #Process friends/following
+            if (!$hidden_friends && !empty($this->lodestone['friends']) && is_array($this->lodestone['friends'])) {
+                $queries[] = [
+                    'UPDATE `ffxiv__character_friends` SET `current`=0 WHERE `character_id`=:character_id;',
+                    [
+                        ':character_id' => $this->id,
+                    ],
+                ];
+                foreach ($this->lodestone['friends'] as $friend_id => $character_data) {
+                    $this->charQuickRegister($friend_id, $this->lodestone['friends'], $queries);
+                    $queries[] = [
+                        'INSERT INTO `ffxiv__character_friends` (`character_id`, `friend`, `current`) VALUES (:character_id, :friend, 1) ON DUPLICATE KEY UPDATE `current`=1;',
+                        [
+                            ':character_id' => $this->id,
+                            ':friend' => $friend_id,
+                        ],
+                    ];
+                }
+            }
+            if (!$hidden_following && !empty($this->lodestone['following']) && is_array($this->lodestone['following'])) {
+                $queries[] = [
+                    'UPDATE `ffxiv__character_following` SET `current`=0 WHERE `character_id`=:character_id;',
+                    [
+                        ':character_id' => $this->id,
+                    ],
+                ];
+                foreach ($this->lodestone['following'] as $following_id => $character_data) {
+                    $this->charQuickRegister($following_id, $this->lodestone['following'], $queries);
+                    $queries[] = [
+                        'INSERT INTO `ffxiv__character_following` (`character_id`, `following`, `current`) VALUES (:character_id, :following, 1) ON DUPLICATE KEY UPDATE `current`=1;',
+                        [
+                            ':character_id' => $this->id,
+                            ':following' => $following_id,
+                        ],
+                    ];
+                }
+            }
             Query::query($queries);
-            #Clean achievements, unless this is a new character
-            if (!empty($updated)) {
-                $this->cleanAchievements();
+            #Schedule the proper update of any newly added characters
+            if (!$hidden_friends && !empty($this->lodestone['friends'])) {
+                $this->charMassCron($this->lodestone['friends']);
+            }
+            if (!$hidden_following && !empty($this->lodestone['following'])) {
+                $this->charMassCron($this->lodestone['following']);
             }
             #Register the Free Company update if a change was detected
             if (!empty($this->lodestone['free_company']['id']) && !Query::query('SELECT `character_id` FROM `ffxiv__freecompany_character` WHERE `character_id`=:character_id AND `fc_id`=:fcID;', [':character_id' => $this->id, ':fcID' => $this->lodestone['free_company']['id']], return: 'check') && new FreeCompany($this->lodestone['free_company']['id'])->update() !== true) {
@@ -429,7 +513,7 @@ class Character extends AbstractTrackerEntity
             if (!empty($this->lodestone['server']) && !empty($this->lodestone['name']) && !empty($this->lodestone['avatar'])) {
                 $queries = [];
                 $queries[] = [
-                    'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id',
+                    'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id',
                     [
                         ':character_id' => $this->id,
                         ':server' => $this->lodestone['server'],
@@ -441,11 +525,9 @@ class Character extends AbstractTrackerEntity
                 return Query::query($queries);
             }
             $result = Query::query(
-                'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id',
+                'UPDATE `ffxiv__character` SET `hidden` = COALESCE(`hidden`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id',
                 [':character_id' => $this->id],
             );
-            #Also try cleaning achievements, but it does not matter much if it fails
-            $this->cleanAchievements();
             return $result;
         } catch (\Throwable $exception) {
             Errors::error_log($exception, debug: $this->debug);
@@ -510,14 +592,25 @@ class Character extends AbstractTrackerEntity
                     ':character_id' => $this->id,
                 ],
             ];
+            #Remove from character lists
+            $queries[] = [
+                'UPDATE `ffxiv__character_friends` SET `current`=0 WHERE `character_id`=:character_id OR `friend`=:character_id;',
+                [
+                    ':character_id' => $this->id,
+                ],
+            ];
+            $queries[] = [
+                'UPDATE `ffxiv__character_following` SET `current`=0 WHERE `character_id`=:character_id OR `following`=:character_id;',
+                [
+                    ':character_id' => $this->id,
+                ],
+            ];
             #Update character
             $queries[] = [
-                'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :id',
+                'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :id',
                 [':id' => $this->id],
             ];
             $result = Query::query($queries);
-            #Also try cleaning achievements, but it does not matter much if it fails
-            $this->cleanAchievements();
             return $result;
         } catch (\Throwable $exception) {
             Errors::error_log($exception, debug: $this->debug);
@@ -571,107 +664,5 @@ class Character extends AbstractTrackerEntity
         } catch (\Throwable $exception) {
             return ['http_error' => 500, 'reason' => $exception->getMessage()];
         }
-    }
-    
-    /**
-     * Remove unnecessary achievements
-     * @return bool
-     */
-    public function cleanAchievements(): bool
-    {
-        #Server should no longer be restricted by RAM, and main issue with performance was fixed by separate counter, too. So trying to keep all achievements again.
-        #But keeping this for now, in case some issues will arise still
-        return true;
-        try {
-            #Get achievements to remove
-            $to_remove = Query::query(
-            /** @lang MariaDB */ 'WITH `RankedAchievements` AS (
-                        -- Rank achievements by time for character_id
-                        SELECT
-                            `fca`.`achievement_id`,
-                            `fca`.`character_id`,
-                            `fa`.`db_id`,
-                            `fca`.`time`,
-                            ROW_NUMBER() OVER (PARTITION BY `fca`.`character_id` ORDER BY `fca`.time DESC) AS `rank`
-                        FROM
-                            `ffxiv__character_achievement` AS `fca`
-                        JOIN
-                            `ffxiv__achievement` AS `fa` ON `fca`.`achievement_id` = `fa`.`achievement_id`
-                        WHERE
-                            `fca`.`character_id` = :character_id
-                    ),
-                    `FilteredAchievements` AS (
-                        -- Exclude the 50 latest achievements
-                        SELECT *
-                        FROM `RankedAchievements`
-                        WHERE `rank` > 50
-                    ),
-                    `DbidNotNull` AS (
-                        -- Select achievements with non-null db_id
-                        SELECT *
-                        FROM `FilteredAchievements`
-                        WHERE `db_id` IS NOT NULL
-                    ),
-                    `DbidNull` AS (
-                        -- Select achievements with null db_id
-                        SELECT *
-                        FROM `FilteredAchievements`
-                        WHERE `db_id` IS NULL
-                    ),
-                    `LatestCharacters` AS (
-                        -- Get up to 50 latest characters for each achievement in DbidNull
-                        SELECT
-                            `l`.`achievement_id`,
-                            `l`.`character_id`,
-                            `l`.`time`
-                        FROM (
-                            SELECT
-                                `fca`.`achievement_id`,
-                                `fca`.`character_id`,
-                                `fca`.`time`,
-                                ROW_NUMBER() OVER (PARTITION BY `fca`.`achievement_id` ORDER BY `fca`.`time` DESC) AS `rank`
-                            FROM
-                                `ffxiv__character_achievement` AS `fca`
-                            JOIN
-                                `ffxiv__character` AS `fc` ON `fca`.`character_id` = `fc`.`character_id`
-                            WHERE
-                                `fca`.`achievement_id` IN (SELECT `achievement_id` FROM `DbidNull`)
-                                AND `fc`.`deleted` IS NULL
-                                AND `fc`.`hidden` IS NULL
-                        ) l
-                        WHERE `l`.`rank` <= 50
-                    ),
-                    `FilteredLatestCharacters` AS (
-                        -- Filter achievements to exclude those where character_id 6691027 is among the latest 50 characters
-                        SELECT DISTINCT `l`.`achievement_id`
-                        FROM
-                            `LatestCharacters` AS `l`
-                        WHERE
-                            `l`.`character_id` != :character_id
-                    ),
-                    `FinalDbidNullFiltered` AS (
-                        -- Combine results from DbidNull and FilteredLatestCharacters
-                        SELECT DISTINCT `dn`.*
-                        FROM
-                            `DbidNull` AS `dn`
-                        WHERE
-                            `dn`.`achievement_id` IN (SELECT `achievement_id` FROM `FilteredLatestCharacters`)
-                    )
-                    -- Combine results from DbidNotNull and FinalDbidNullFiltered
-                    SELECT * FROM `DbidNotNull`
-                    UNION ALL
-                    SELECT * FROM `FinalDbidNullFiltered`;
-                    ',
-                [':character_id' => $this->id], return: 'column'
-            );
-            if (!empty($to_remove)) {
-                Query::query('DELETE FROM `ffxiv__character_achievement` WHERE `character_id`=:character_id AND `achievement_id` IN (:achievement_id);',
-                    [':character_id' => $this->id, ':achievement_id' => [$to_remove, 'in', 'int']],
-                );
-            }
-        } catch (\Throwable $exception) {
-            Errors::error_log($exception);
-        }
-        return true;
     }
 }

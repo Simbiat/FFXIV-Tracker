@@ -194,7 +194,7 @@ class FreeCompany extends AbstractTrackerEntity
                     `fc_id`, `name`, `server_id`, `formed`, `registered`, `updated`, `deleted`, `gc_id`, `tag`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `rank`, `slogan`, `active_id`, `recruitment`, `community_id`, `estate_zone`, `estate_id`, `estate_message`, `role_playing`, `leveling`, `casual`, `hardcore`, `dungeons`, `guildhests`, `trials`, `raids`, `pvp`, `tank`, `healer`, `dps`, `crafter`, `gatherer`
                 )
                 VALUES (
-                    :fc_id, :name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :formed, CURRENT_DATE(), CURRENT_TIMESTAMP(6), NULL, (SELECT `gc_id` FROM `ffxiv__grandcompany` WHERE `gc_name`=:grand_company), :tag, :crest_part_1, :crest_part_2, :crest_part_3, :rank, :slogan, (SELECT `active_id` FROM `ffxiv__timeactive` WHERE `active`=:active LIMIT 1), :recruitment, :community_id, :estate_zone, (SELECT `estate_id` FROM `ffxiv__estate` WHERE CONCAT(\'Plot \', `plot`, \', \', `ward`, \' Ward, \', `area`, \' (\', CASE WHEN `size` = 1 THEN \'Small\' WHEN `size` = 2 THEN \'Medium\' WHEN `size` = 3 THEN \'Large\' END, \')\')=:estate_address LIMIT 1), :estate_message, :role_playing, :leveling, :casual, :hardcore, :dungeons, :guildhests, :trials, :raids, :pvp, :tank, :healer, :dps, :crafter, :gatherer
+                    :fc_id, :name, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :formed, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), NULL, (SELECT `gc_id` FROM `ffxiv__grandcompany` WHERE `gc_name`=:grand_company), :tag, :crest_part_1, :crest_part_2, :crest_part_3, :rank, :slogan, (SELECT `active_id` FROM `ffxiv__timeactive` WHERE `active`=:active LIMIT 1), :recruitment, :community_id, :estate_zone, (SELECT `estate_id` FROM `ffxiv__estate` WHERE CONCAT(\'Plot \', `plot`, \', \', `ward`, \' Ward, \', `area`, \' (\', CASE WHEN `size` = 1 THEN \'Small\' WHEN `size` = 2 THEN \'Medium\' WHEN `size` = 3 THEN \'Large\' END, \')\')=:estate_address LIMIT 1), :estate_message, :role_playing, :leveling, :casual, :hardcore, :dungeons, :guildhests, :trials, :raids, :pvp, :tank, :healer, :dps, :crafter, :gatherer
                 )
                 ON DUPLICATE KEY UPDATE
                     `name`=:name, `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL, `gc_id`=(SELECT `gc_id` FROM `ffxiv__grandcompany` WHERE `gc_name`=:grand_company), `tag`=:tag, `crest_part_1`=:crest_part_1, `crest_part_2`=:crest_part_2, `crest_part_3`=:crest_part_3, `rank`=:rank, `slogan`=:slogan, `active_id`=(SELECT `active_id` FROM `ffxiv__timeactive` WHERE `active`=:active AND `active` IS NOT NULL LIMIT 1), `recruitment`=:recruitment, `community_id`=:community_id, `estate_zone`=:estate_zone, `estate_id`=(SELECT `estate_id` FROM `ffxiv__estate` WHERE CONCAT(\'Plot \', `plot`, \', \', `ward`, \' Ward, \', `area`, \' (\', CASE WHEN `size` = 1 THEN \'Small\' WHEN `size` = 2 THEN \'Medium\' WHEN `size` = 3 THEN \'Large\' END, \')\')=:estate_address LIMIT 1), `estate_message`=:estate_message, `role_playing`=:role_playing, `leveling`=:leveling, `casual`=:casual, `hardcore`=:hardcore, `dungeons`=:dungeons, `guildhests`=:guildhests, `trials`=:trials, `raids`=:raids, `pvp`=:pvp, `tank`=:tank, `healer`=:healer, `dps`=:dps, `crafter`=:crafter, `gatherer`=:gatherer;',
@@ -202,7 +202,7 @@ class FreeCompany extends AbstractTrackerEntity
                     ':fc_id' => $this->id,
                     ':name' => $this->lodestone['name'],
                     ':server' => $this->lodestone['server'],
-                    ':formed' => [$this->lodestone['formed'], 'date'],
+                    ':formed' => [$this->lodestone['formed'], 'datetime'],
                     ':grand_company' => $this->lodestone['grand_company'],
                     ':tag' => $this->lodestone['tag'],
                     ':crest_part_1' => [
@@ -307,26 +307,7 @@ class FreeCompany extends AbstractTrackerEntity
                             ':rank_name' => (empty($details['rank']) ? '' : $details['rank']),
                         ],
                     ];
-                    #Check if a member is registered on the tracker while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `character_id` FROM `ffxiv__character` WHERE `character_id`=:character_id', [':character_id' => $member], return: 'check');
-                    if (!$this->lodestone['members'][$member]['registered']) {
-                        #Create the basic entry of the character
-                        $queries[] = [
-                            'INSERT INTO `ffxiv__character`(
-                                `character_id`, `server_id`, `name`, `registered`, `updated`, `avatar`, `gc_rank_id`
-                            )
-                            VALUES (
-                                :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1)
-                            ) ON DUPLICATE KEY UPDATE `deleted`=NULL;',
-                            [
-                                ':character_id' => $member,
-                                ':server' => $details['server'],
-                                ':name' => $details['name'],
-                                ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
-                                ':gcRank' => (empty($details['grand_company']['rank']) ? '' : $details['grand_company']['rank']),
-                            ]
-                        ];
-                    }
+                    $this->charQuickRegister($member, $this->lodestone['members'], $queries);
                     #Link the character to the company
                     $queries[] = [
                         'INSERT INTO `ffxiv__freecompany_character` (`fc_id`, `character_id`, `rank_id`, `current`) VALUES (:fc_id, :character_id, :rank_id, 1) ON DUPLICATE KEY UPDATE `current`=1, `rank_id`=:rank_id;',
@@ -365,7 +346,7 @@ class FreeCompany extends AbstractTrackerEntity
             ];
             #Update Free Company
             $queries[] = [
-                'UPDATE `ffxiv__freecompany` SET `deleted` = COALESCE(`deleted`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `fc_id` = :id',
+                'UPDATE `ffxiv__freecompany` SET `deleted` = COALESCE(`deleted`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `fc_id` = :id',
                 [':id' => $this->id],
             ];
             return Query::query($queries);

@@ -238,31 +238,31 @@ class Statistics
         $data['namedays'] = Query::query('SELECT `ffxiv__nameday`.`nameday` AS `value`, COUNT(`ffxiv__character`.`nameday_id`) AS `count` FROM `ffxiv__character` INNER JOIN `ffxiv__nameday` ON `ffxiv__character`.`nameday_id`=`ffxiv__nameday`.`nameday_id` GROUP BY `ffxiv__nameday`.`nameday_id` ORDER BY `count` DESC;', return: 'all');
         #Timeline of entities formation, updates, etc.
         $data['timelines'] = Query::query(
-            'SELECT `registered` AS `date`, COUNT(*) AS `count`, \'characters_registered\' as `type` FROM `ffxiv__character` GROUP BY `date`
+            'SELECT DATE(`registered`) AS `date`, COUNT(*) AS `count`, \'characters_registered\' as `type` FROM `ffxiv__character` GROUP BY `date`
                             UNION
-                            SELECT `deleted` AS `date`, COUNT(*) AS `count`, \'characters_deleted\' as `type` FROM `ffxiv__character` WHERE `deleted` IS NOT NULL GROUP BY `date`
+                            SELECT DATE(`deleted`) AS `date`, COUNT(*) AS `count`, \'characters_deleted\' as `type` FROM `ffxiv__character` WHERE `deleted` IS NOT NULL GROUP BY `date`
                             UNION
-                            SELECT `hidden` AS `date`, COUNT(*) AS `count`, \'characters_hidden\' as `type` FROM `ffxiv__character` WHERE `hidden` IS NOT NULL GROUP BY `date`
+                            SELECT DATE(`hidden`) AS `date`, COUNT(*) AS `count`, \'characters_hidden\' as `type` FROM `ffxiv__character` WHERE `hidden` IS NOT NULL GROUP BY `date`
                             UNION
-                            SELECT `formed` AS `date`, COUNT(*) AS `count`, \'free_companies_formed\' as `type` FROM `ffxiv__freecompany` GROUP BY `date`
+                            SELECT DATE(`formed`) AS `date`, COUNT(*) AS `count`, \'free_companies_formed\' as `type` FROM `ffxiv__freecompany` GROUP BY `date`
                             UNION
-                            SELECT `registered` AS `date`, COUNT(*) AS `count`, \'free_companies_registered\' as `type` FROM `ffxiv__freecompany` GROUP BY `date`
+                            SELECT DATE(`registered`) AS `date`, COUNT(*) AS `count`, \'free_companies_registered\' as `type` FROM `ffxiv__freecompany` GROUP BY `date`
                             UNION
-                            SELECT `deleted` AS `date`, COUNT(*) AS `count`, \'free_companies_deleted\' as `type` FROM `ffxiv__freecompany` WHERE `deleted` IS NOT NULL GROUP BY `date`
+                            SELECT DATE(`deleted`) AS `date`, COUNT(*) AS `count`, \'free_companies_deleted\' as `type` FROM `ffxiv__freecompany` WHERE `deleted` IS NOT NULL GROUP BY `date`
                             UNION
-                            SELECT `formed` AS `date`, COUNT(*) AS `count`, \'pvp_teams_formed\' as `type` FROM `ffxiv__pvpteam` WHERE `formed` IS NOT NULL GROUP BY `date`
+                            SELECT DATE(`formed`) AS `date`, COUNT(*) AS `count`, \'pvp_teams_formed\' as `type` FROM `ffxiv__pvpteam` WHERE `formed` IS NOT NULL GROUP BY `date`
                             UNION
-                            SELECT `registered` AS `date`, COUNT(*) AS `count`, \'pvp_teams_registered\' as `type` FROM `ffxiv__pvpteam` GROUP BY `date`
+                            SELECT DATE(`registered`) AS `date`, COUNT(*) AS `count`, \'pvp_teams_registered\' as `type` FROM `ffxiv__pvpteam` GROUP BY `date`
                             UNION
-                            SELECT `deleted` AS `date`, COUNT(*) AS `count`, \'pvp_teams_deleted\' as `type` FROM `ffxiv__pvpteam` WHERE `deleted` IS NOT NULL GROUP BY `date`
+                            SELECT DATE(`deleted`) AS `date`, COUNT(*) AS `count`, \'pvp_teams_deleted\' as `type` FROM `ffxiv__pvpteam` WHERE `deleted` IS NOT NULL GROUP BY `date`
                             UNION
-                            SELECT `formed` AS `date`, COUNT(*) AS `count`, \'linkshells_formed\' as `type` FROM `ffxiv__linkshell` WHERE `formed` IS NOT NULL GROUP BY `date`
+                            SELECT DATE(`formed`) AS `date`, COUNT(*) AS `count`, \'linkshells_formed\' as `type` FROM `ffxiv__linkshell` WHERE `formed` IS NOT NULL GROUP BY `date`
                             UNION
-                            SELECT `registered` AS `date`, COUNT(*) AS `count`, \'linkshells_registered\' as `type` FROM `ffxiv__linkshell` GROUP BY `date`
+                            SELECT DATE(`registered`) AS `date`, COUNT(*) AS `count`, \'linkshells_registered\' as `type` FROM `ffxiv__linkshell` GROUP BY `date`
                             UNION
-                            SELECT `deleted` AS `date`, COUNT(*) AS `count`, \'linkshells_deleted\' as `type` FROM `ffxiv__linkshell` WHERE `deleted` IS NOT NULL GROUP BY `date`;', return: 'all'
+                            SELECT DATE(`deleted`) AS `date`, COUNT(*) AS `count`, \'linkshells_deleted\' as `type` FROM `ffxiv__linkshell` WHERE `deleted` IS NOT NULL GROUP BY `date`;', return: 'all'
         );
-        $data['timelines'] = Splitters::splitByKey($data['timelines'], 'date');
+        $data['timelines'] = Splitters::splitByKey($data['timelines'], 'datetime');
         foreach ($data['timelines'] as $date => $datapoint) {
             $data['timelines'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }
@@ -426,7 +426,7 @@ class Statistics
                             UNION
                             (SELECT DATE(`updated`) AS `date`, COUNT(*) AS `count`, \'linkshells\' as `type` FROM `ffxiv__linkshell` GROUP BY `date` ORDER BY `date` DESC LIMIT 30);', return: 'all'
         );
-        $data['updates_stats'] = Splitters::splitByKey($data['updates_stats'], 'date');
+        $data['updates_stats'] = Splitters::splitByKey($data['updates_stats'], 'datetime');
         foreach ($data['updates_stats'] as $date => $datapoint) {
             $data['updates_stats'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }

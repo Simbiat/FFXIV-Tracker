@@ -142,14 +142,14 @@ class Linkshell extends AbstractTrackerEntity
                         ':crossworld' => [$this::CROSSWORLD, 'bool'],
                         ':formed' => [
                             (empty($this->lodestone['formed']) ? null : $this->lodestone['formed']),
-                            (empty($this->lodestone['formed']) ? 'null' : 'date'),
+                            (empty($this->lodestone['formed']) ? 'null' : 'datetime'),
                         ],
                     ],
                 ];
             } else {
                 #Main query to insert or update a Linkshell
                 $queries[] = [
-                    'INSERT INTO `ffxiv__linkshell`(`ls_id`, `name`, `crossworld`, `formed`, `registered`, `updated`, `deleted`, `server_id`, `community_id`) VALUES (:ls_id, :name, :crossworld, :formed, CURRENT_DATE(), CURRENT_TIMESTAMP(6), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), :community_id) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL, `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), `community_id`=:community_id;',
+                    'INSERT INTO `ffxiv__linkshell`(`ls_id`, `name`, `crossworld`, `formed`, `registered`, `updated`, `deleted`, `server_id`, `community_id`) VALUES (:ls_id, :name, :crossworld, :formed, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), :community_id) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL, `server_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server OR `data_center`=:server ORDER BY `server_id` LIMIT 1), `community_id`=:community_id;',
                     [
                         ':ls_id' => $this->id,
                         ':server' => $this->lodestone['server'] ?? $this->lodestone['data_center'],
@@ -157,7 +157,7 @@ class Linkshell extends AbstractTrackerEntity
                         ':crossworld' => [$this::CROSSWORLD, 'bool'],
                         ':formed' => [
                             (empty($this->lodestone['formed']) ? null : $this->lodestone['formed']),
-                            (empty($this->lodestone['formed']) ? 'null' : 'date'),
+                            (empty($this->lodestone['formed']) ? 'null' : 'datetime'),
                         ],
                         ':community_id' => [
                             (empty($this->lodestone['community_id']) ? null : $this->lodestone['community_id']),
@@ -193,26 +193,7 @@ class Linkshell extends AbstractTrackerEntity
             #Process Lodestone members
             if (!empty($this->lodestone['members'])) {
                 foreach ($this->lodestone['members'] as $member => $details) {
-                    #Check if a member is registered on the tracker while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `character_id` FROM `ffxiv__character` WHERE `character_id`=:character_id', [':character_id' => $member], return: 'check');
-                    if (!$this->lodestone['members'][$member]['registered']) {
-                        #Create a basic entry of the character
-                        $queries[] = [
-                            'INSERT IGNORE INTO `ffxiv__character`(
-                            `character_id`, `server_id`, `name`, `registered`, `updated`, `avatar`, `gc_rank_id`
-                        )
-                        VALUES (
-                            :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1)
-                        ) ON DUPLICATE KEY UPDATE `deleted`=NULL;',
-                            [
-                                ':character_id' => $member,
-                                ':server' => $details['server'],
-                                ':name' => $details['name'],
-                                ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
-                                ':gcRank' => (empty($details['grand_company']['rank']) ? '' : $details['grand_company']['rank']),
-                            ]
-                        ];
-                    }
+                    $this->charQuickRegister($member, $this->lodestone['members'], $queries);
                     #Insert/update character relationship with linkshell
                     $queries[] = [
                         'INSERT INTO `ffxiv__linkshell_character` (`ls_id`, `character_id`, `rank_id`, `current`) VALUES (:ls_id, :member_id, (SELECT `ls_rank_id` FROM `ffxiv__linkshell_rank` WHERE `rank`=:rank LIMIT 1), 1) ON DUPLICATE KEY UPDATE `rank_id`=(SELECT `ls_rank_id` FROM `ffxiv__linkshell_rank` WHERE `rank`=:rank AND `rank` IS NOT NULL LIMIT 1), `current`=1;',
@@ -252,7 +233,7 @@ class Linkshell extends AbstractTrackerEntity
             ];
             #Update linkshell
             $queries[] = [
-                'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `ls_id` = :id',
+                'UPDATE `ffxiv__linkshell` SET `deleted` = COALESCE(`deleted`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `ls_id` = :id',
                 [':id' => $this->id],
             ];
             return Query::query($queries);

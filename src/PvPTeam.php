@@ -134,12 +134,12 @@ class PvPTeam extends AbstractTrackerEntity
             $this->downloadCrestComponents($this->lodestone['crest']);
             #Main query to insert or update a PvP Team
             $queries[] = [
-                'INSERT INTO `ffxiv__pvpteam` (`pvp_id`, `name`, `formed`, `registered`, `updated`, `deleted`, `data_center_id`, `community_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`) VALUES (:pvp_id, :name, :formed, CURRENT_DATE(), CURRENT_TIMESTAMP(6), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `data_center`=:data_center ORDER BY `server_id` LIMIT 1), :community_id, :crest_part_1, :crest_part_2, :crest_part_3) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL, `data_center_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `data_center`=:data_center ORDER BY `server_id` LIMIT 1), `community_id`=:community_id, `crest_part_1`=:crest_part_1, `crest_part_2`=:crest_part_2, `crest_part_3`=:crest_part_3;',
+                'INSERT INTO `ffxiv__pvpteam` (`pvp_id`, `name`, `formed`, `registered`, `updated`, `deleted`, `data_center_id`, `community_id`, `crest_part_1`, `crest_part_2`, `crest_part_3`) VALUES (:pvp_id, :name, :formed, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), NULL, (SELECT `server_id` FROM `ffxiv__server` WHERE `data_center`=:data_center ORDER BY `server_id` LIMIT 1), :community_id, :crest_part_1, :crest_part_2, :crest_part_3) ON DUPLICATE KEY UPDATE `name`=:name, `formed`=:formed, `updated`=CURRENT_TIMESTAMP(6), `deleted`=NULL, `data_center_id`=(SELECT `server_id` FROM `ffxiv__server` WHERE `data_center`=:data_center ORDER BY `server_id` LIMIT 1), `community_id`=:community_id, `crest_part_1`=:crest_part_1, `crest_part_2`=:crest_part_2, `crest_part_3`=:crest_part_3;',
                 [
                     ':pvp_id' => $this->id,
                     ':data_center' => $this->lodestone['data_center'],
                     ':name' => $this->lodestone['name'],
-                    ':formed' => [$this->lodestone['formed'], 'date'],
+                    ':formed' => [$this->lodestone['formed'], 'datetime'],
                     ':community_id' => [
                         (empty($this->lodestone['community_id']) ? NULL : $this->lodestone['community_id']),
                         (empty($this->lodestone['community_id']) ? 'null' : 'string'),
@@ -185,27 +185,7 @@ class PvPTeam extends AbstractTrackerEntity
             #Process Lodestone members
             if (!empty($this->lodestone['members'])) {
                 foreach ($this->lodestone['members'] as $member => $details) {
-                    #Check if a member is registered on the tracker while saving the status for future use
-                    $this->lodestone['members'][$member]['registered'] = Query::query('SELECT `character_id` FROM `ffxiv__character` WHERE `character_id`=:character_id', [':character_id' => $member], return: 'check');
-                    if (!$this->lodestone['members'][$member]['registered']) {
-                        #Create a basic entry of the character
-                        $queries[] = [
-                            'INSERT IGNORE INTO `ffxiv__character`(
-                                `character_id`, `server_id`, `name`, `registered`, `updated`, `avatar`, `gc_rank_id`, `pvp_matches`
-                            )
-                            VALUES (
-                                :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_DATE(), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), :matches
-                            ) ON DUPLICATE KEY UPDATE `deleted`=NULL;',
-                            [
-                                ':character_id' => $member,
-                                ':server' => $details['server'],
-                                ':name' => $details['name'],
-                                ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $details['avatar']),
-                                ':gcRank' => (empty($details['grand_company']['rank']) ? '' : $details['grand_company']['rank']),
-                                ':matches' => (empty($details['feasts']) ? 0 : $details['feasts']),
-                            ]
-                        ];
-                    }
+                    $this->charQuickRegister($member, $this->lodestone['members'], $queries);
                     #Link the character to the team
                     $queries[] = [
                         'INSERT INTO `ffxiv__pvpteam_character` (`pvp_id`, `character_id`, `rank_id`, `current`) VALUES (:pvp_id, :character_id, (SELECT `pvp_rank_id` FROM `ffxiv__pvpteam_rank` WHERE `rank`=:rank LIMIT 1), 1) ON DUPLICATE KEY UPDATE `current`=1, `rank_id`=(SELECT `pvp_rank_id` FROM `ffxiv__pvpteam_rank` WHERE `rank`=:rank AND `rank` IS NOT NULL LIMIT 1);',
@@ -245,7 +225,7 @@ class PvPTeam extends AbstractTrackerEntity
             ];
             #Update PvP Team
             $queries[] = [
-                'UPDATE `ffxiv__pvpteam` SET `deleted` = COALESCE(`deleted`, CURRENT_DATE()), `updated`=CURRENT_TIMESTAMP(6) WHERE `pvp_id` = :id', [':id' => $this->id],
+                'UPDATE `ffxiv__pvpteam` SET `deleted` = COALESCE(`deleted`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `pvp_id` = :id', [':id' => $this->id],
             ];
             return Query::query($queries);
         } catch (\Throwable $exception) {

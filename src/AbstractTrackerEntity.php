@@ -215,7 +215,7 @@ abstract class AbstractTrackerEntity
         if ($_SESSION['user_id'] === 1) {
             return ['http_error' => 403, 'reason' => 'Authentication required'];
         }
-        if (empty(\array_intersect(['refresh_owned_ff', 'refresh_all_ff'], $_SESSION['permissions']))) {
+        if (count(\array_intersect(['refresh_owned_ff', 'refresh_all_ff'], $_SESSION['permissions'])) === 0) {
             return ['http_error' => 403, 'reason' => 'No `'.\implode('` or `', ['refresh_owned_ff', 'refresh_all_ff']).'` permission'];
         }
         $id_column = match ($this::ENTITY_TYPE) {
@@ -228,9 +228,11 @@ abstract class AbstractTrackerEntity
         try {
             if ($this::ENTITY_TYPE !== 'achievement') {
                 if ($this::ENTITY_TYPE === 'character') {
-                    $check = Query::query('SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `character_id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
-                    if (!$check) {
-                        return ['http_error' => 403, 'reason' => 'Character not linked to user'];
+                    if (!\in_array('refresh_all_ff', $_SESSION['permissions'], true)) {
+                        $check = Query::query('SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `character_id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
+                        if (!$check) {
+                            return ['http_error' => 403, 'reason' => 'Character not linked to user'];
+                        }
                     }
                 } else {
                     #Check if any character currently registered in a group is linked to the user
@@ -322,6 +324,31 @@ abstract class AbstractTrackerEntity
                     }
                 }
             }
+        }
+    }
+    
+    protected function charQuickRegister(string|int $character_id, array &$lodestone_data, array &$queries): void
+    {
+        #Check if character is registered
+        $lodestone_data[$character_id]['registered'] = Query::query('SELECT `character_id` FROM `ffxiv__character` WHERE `character_id`=:character_id', [':character_id' => $character_id], return: 'check');
+        if (!$lodestone_data[$character_id]['registered']) {
+            #Create the basic entry of the character
+            $queries[] = [
+                'INSERT INTO `ffxiv__character`(
+                                `character_id`, `server_id`, `name`, `registered`, `updated`, `avatar`, `gc_rank_id`, `pvp_matches`
+                            )
+                            VALUES (
+                                :character_id, (SELECT `server_id` FROM `ffxiv__server` WHERE `server`=:server), :name, CURRENT_TIMESTAMP(6), TIMESTAMPADD(SECOND, -3600, CURRENT_TIMESTAMP(6)), :avatar, `gc_rank_id` = (SELECT `gc_rank_id` FROM `ffxiv__grandcompany_rank` WHERE `gc_rank`=:gcRank ORDER BY `gc_rank_id` LIMIT 1), :matches
+                            ) ON DUPLICATE KEY UPDATE `deleted`=NULL;',
+                [
+                    ':character_id' => $character_id,
+                    ':server' => $lodestone_data[$character_id]['server'],
+                    ':name' => $lodestone_data[$character_id]['name'],
+                    ':avatar' => \str_replace(['https://img2.finalfantasyxiv.com/f/', 'c0.jpg'], '', $lodestone_data[$character_id]['avatar']),
+                    ':gcRank' => (empty($lodestone_data[$character_id]['grand_company']['rank']) ? '' : $lodestone_data[$character_id]['grand_company']['rank']),
+                    ':matches' => (empty($lodestone_data[$character_id]['feasts']) ? 0 : $lodestone_data[$character_id]['feasts']),
+                ]
+            ];
         }
     }
     
