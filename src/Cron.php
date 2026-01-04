@@ -14,10 +14,10 @@ use Simbiat\FFXIV\Entities\CrossworldLinkshell;
 use Simbiat\FFXIV\Entities\FreeCompany;
 use Simbiat\FFXIV\Entities\Linkshell;
 use Simbiat\FFXIV\Entities\PvPTeam;
+use Simbiat\Talks\Enums\SystemUsers;
 use Simbiat\Website\Caching;
 use Simbiat\Website\Config;
 use Simbiat\Website\Entities\Notifications\CronFailure;
-use Simbiat\Website\Enums\SystemUsers;
 use Simbiat\Website\Errors;
 
 /**
