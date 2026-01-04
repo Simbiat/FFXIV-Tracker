@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace Simbiat\FFXIV;
+namespace Simbiat\FFXIV\Entities;
 
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
@@ -15,7 +15,7 @@ use function sprintf;
 /**
  * Generic class for FFXIV entities
  */
-abstract class AbstractTrackerEntity
+abstract class AbstractEntity
 {
     #Flag to indicate whether there was an attempt to get data within this object. Meant to help reduce reuse of the same object for different sets of data
     protected bool $attempted = false;

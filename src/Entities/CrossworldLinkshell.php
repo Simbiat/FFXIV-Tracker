@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace Simbiat\FFXIV;
+namespace Simbiat\FFXIV\Entities;
 
 class CrossworldLinkshell extends Linkshell
 {

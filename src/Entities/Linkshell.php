@@ -1,17 +1,18 @@
 <?php
 declare(strict_types = 1);
 
-namespace Simbiat\FFXIV;
+namespace Simbiat\FFXIV\Entities;
 
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
+use Simbiat\FFXIV\Lodestone;
 use Simbiat\Website\Errors;
 use Simbiat\Website\HomePage;
 
 /**
  * Class representing a FFXIV linkshell (chat group)
  */
-class Linkshell extends AbstractTrackerEntity
+class Linkshell extends AbstractEntity
 {
     #Custom properties
     protected const string ENTITY_TYPE = 'linkshell';

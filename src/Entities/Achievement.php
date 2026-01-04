@@ -1,10 +1,11 @@
 <?php
 declare(strict_types = 1);
 
-namespace Simbiat\FFXIV;
+namespace Simbiat\FFXIV\Entities;
 
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
+use Simbiat\FFXIV\Lodestone;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
 use Simbiat\Website\HomePage;
@@ -13,7 +14,7 @@ use Simbiat\Website\Images;
 /**
  * Class representing a FFXIV achievement
  */
-class Achievement extends AbstractTrackerEntity
+class Achievement extends AbstractEntity
 {
     #Custom properties
     protected const string ENTITY_TYPE = 'achievement';

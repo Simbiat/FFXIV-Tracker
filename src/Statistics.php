@@ -9,6 +9,7 @@ use Simbiat\Arrays\Editors;
 use Simbiat\Arrays\Splitters;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
+use Simbiat\FFXIV\Entities\AbstractEntity;
 use Simbiat\Website\Config;
 use function in_array;
 
@@ -194,9 +195,9 @@ class Statistics
         #PvP teams
         $data['servers']['pvpteam'] = Query::query('SELECT `ffxiv__server`.`data_center` AS `value`, count(`ffxiv__pvpteam`.`data_center_id`) AS `count` FROM `ffxiv__pvpteam` INNER JOIN `ffxiv__server` ON `ffxiv__pvpteam`.`data_center_id`=`ffxiv__server`.`server_id` WHERE `ffxiv__pvpteam`.`deleted` IS NULL GROUP BY `value` ORDER BY `count` DESC', return: 'all');
         #Get the most popular crests for companies
-        $data['freecompany']['crests'] = AbstractTrackerEntity::cleanCrestResults(Query::query('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__freecompany` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;', return: 'all'));
+        $data['freecompany']['crests'] = AbstractEntity::cleanCrestResults(Query::query('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__freecompany` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;', return: 'all'));
         #Get the most popular crests for PvP Teams
-        $data['pvpteam']['crests'] = AbstractTrackerEntity::cleanCrestResults(Query::query('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__pvpteam` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;', return: 'all'));
+        $data['pvpteam']['crests'] = AbstractEntity::cleanCrestResults(Query::query('SELECT COUNT(*) AS `count`, `crest_part_1`, `crest_part_2`, `crest_part_3` FROM `ffxiv__pvpteam` GROUP BY `crest_part_1`, `crest_part_2`, `crest_part_3` ORDER BY `count` DESC LIMIT 20;', return: 'all'));
     }
     
     /**
@@ -283,7 +284,7 @@ class Statistics
         #Characters with no avatar
         $data['bugs']['no_avatar'] = Query::query('SELECT `character_id` AS `id`, `name`, `avatar` AS `icon`, \'character\' AS `type` FROM `ffxiv__character` WHERE `avatar` LIKE \'defaultf%\' AND `deleted` IS NULL AND `hidden` IS NULL ORDER BY `updated`, `name`;', return: 'all');
         #Groups with no members
-        $data['bugs']['no_members'] = AbstractTrackerEntity::cleanCrestResults(Query::query(
+        $data['bugs']['no_members'] = AbstractEntity::cleanCrestResults(Query::query(
             'SELECT `fc_id` AS `id`, `name`, \'freecompany\' AS `type`, `crest_part_1`, `crest_part_2`, `crest_part_3`, `gc_id` FROM `ffxiv__freecompany` as `fc` WHERE `deleted` IS NULL AND `fc_id` NOT IN (SELECT `fc_id` FROM `ffxiv__freecompany_character` WHERE `fc_id`=`fc`.`fc_id` AND `current`=1)
                         UNION
                         SELECT `ls_id` AS `id`, `name`, IF(`crossworld`=1, \'crossworldlinkshell\', \'linkshell\') AS `type`, null as `crest_part_1`, null as `crest_part_2`, null as `crest_part_3`, null as `gc_id` FROM `ffxiv__linkshell` as `ls` WHERE `deleted` IS NULL AND `ls_id` NOT IN (SELECT `ls_id` FROM `ffxiv__linkshell_character` WHERE `ls_id`=`ls`.`ls_id` AND `current`=1)
@@ -347,7 +348,7 @@ class Statistics
                 $data['bugs']['duplicate_names'][$entity_type][$server] = Splitters::splitByKey($server_data, 'name', keep_key: true, case_insensitive: true);
                 foreach ($data['bugs']['duplicate_names'][$entity_type][$server] as $name => $name_data) {
                     if (in_array($entity_type, ['freecompany', 'pvpteam'])) {
-                        $name_data = AbstractTrackerEntity::cleanCrestResults($name_data);
+                        $name_data = AbstractEntity::cleanCrestResults($name_data);
                     }
                     foreach ($name_data as $key => $duplicates) {
                         #Clean up
