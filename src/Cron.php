@@ -32,7 +32,9 @@ class Cron
     public function updateStatistics(): void
     {
         try {
+            $cron_agent = new Agent();
             foreach (['raw', 'characters', 'groups', 'achievements', 'timelines', 'other', 'bugs'] as $type) {
+                $cron_agent->log('Updating FFXIV '.$type.' statistics...', EventTypes::CustomInformation);
                 new Statistics()->update($type);
             }
         } catch (\Throwable $throwable) {
