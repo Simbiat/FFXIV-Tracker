@@ -39,7 +39,7 @@ class Cron
             }
         } catch (\Throwable $throwable) {
             $error = $throwable->getMessage()."\r\n".$throwable->getTraceAsString();
-            new CronFailure()->save(SystemUsers::Owner->value, ['method' => __METHOD__, 'errors' => $error], true, false, Config::ADMIN_MAIL)->send();
+            new CronFailure()->save(SystemUsers::Owner->value, ['method' => __METHOD__, 'errors' => $error], true, false, Config::ADMIN_MAIL);
         }
     }
     
@@ -144,7 +144,7 @@ class Cron
             Query::query($queries);
         } catch (\Throwable $throwable) {
             $error = $throwable->getMessage()."\r\n".$throwable->getTraceAsString();
-            new CronFailure()->save(SystemUsers::Owner->value, ['method' => __METHOD__, 'errors' => $error], true, false, Config::ADMIN_MAIL)->send();
+            new CronFailure()->save(SystemUsers::Owner->value, ['method' => __METHOD__, 'errors' => $error], true, false, Config::ADMIN_MAIL);
         }
     }
     
