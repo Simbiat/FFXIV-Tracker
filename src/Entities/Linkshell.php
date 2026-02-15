@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Simbiat\FFXIV\Entities;
 
+use Simbiat\Arrays\Splitters;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\FFXIV\Lodestone;
@@ -23,6 +24,7 @@ class Linkshell extends AbstractEntity
     public ?string $data_center = null;
     public array $old_names = [];
     public array $members = [];
+    public array $past_members = [];
     
     /**Function to get initial data from DB
      * @throws \Exception
@@ -38,7 +40,7 @@ class Linkshell extends AbstractEntity
         #Get old names
         $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__linkshell_names` WHERE `ls_id`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
-        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__linkshell_character`.`character_id` AS `id`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__linkshell_rank`.`rank`, `ffxiv__linkshell_rank`.`ls_rank_id`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE uc__user_to_ff_character.`character_id`=`ffxiv__linkshell_character`.`character_id`) AS `user_id` FROM `ffxiv__linkshell_character` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_rank`.`ls_rank_id`=`ffxiv__linkshell_character`.`rank_id` LEFT JOIN `ffxiv__character` ON `ffxiv__linkshell_character`.`character_id`=`ffxiv__character`.`character_id` WHERE `ffxiv__linkshell_character`.`ls_id`=:id AND `current`=1 ORDER BY `ffxiv__linkshell_character`.`rank_id` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
+        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__linkshell_character`.`character_id` AS `id`, `ffxiv__character`.`name`, `current`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__linkshell_rank`.`rank`, `ffxiv__linkshell_rank`.`ls_rank_id`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE uc__user_to_ff_character.`character_id`=`ffxiv__linkshell_character`.`character_id`) AS `user_id` FROM `ffxiv__linkshell_character` LEFT JOIN `ffxiv__linkshell_rank` ON `ffxiv__linkshell_rank`.`ls_rank_id`=`ffxiv__linkshell_character`.`rank_id` LEFT JOIN `ffxiv__character` ON `ffxiv__linkshell_character`.`character_id`=`ffxiv__character`.`character_id` WHERE `ffxiv__linkshell_character`.`ls_id`=:id ORDER BY `ffxiv__linkshell_character`.`rank_id` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
         unset($data['server_id']);
         if ($data['crossworld']) {
@@ -117,7 +119,9 @@ class Linkshell extends AbstractEntity
             'deleted' => (empty($from_db['deleted']) ? null : \strtotime($from_db['deleted'])),
         ];
         $this->old_names = $from_db['old_names'];
-        $this->members = $from_db['members'];
+        $members = Splitters::splitByKey($from_db['members'], 'current');
+        $this->members = $members[1] ?? [];
+        $this->past_members = $members[0] ?? [];
         if ($this::CROSSWORLD) {
             $this->data_center = $from_db['data_center'];
         } else {

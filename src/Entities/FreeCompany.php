@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Simbiat\FFXIV\Entities;
 
+use Simbiat\Arrays\Splitters;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\FFXIV\Lodestone;
@@ -33,6 +34,7 @@ class FreeCompany extends AbstractEntity
     public array $old_names = [];
     public array $ranking = [];
     public array $members = [];
+    public array $past_members = [];
     
     /**
      * Function to get initial data from DB
@@ -49,7 +51,7 @@ class FreeCompany extends AbstractEntity
         #Get old names
         $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__freecompany_names` WHERE `fc_id`=:id AND `name`!=:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
-        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__freecompany_character`.`character_id` AS `id`, `ffxiv__freecompany_rank`.`rank_id`, `rankname` AS `rank`, `name`, `ffxiv__character`.`avatar` AS `icon`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE uc__user_to_ff_character.`character_id`=`ffxiv__freecompany_character`.`character_id`) AS `user_id` FROM `ffxiv__freecompany_character`LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`rank_id`=`ffxiv__freecompany_character`.`rank_id` AND `ffxiv__freecompany_rank`.`fc_id`=`ffxiv__freecompany_character`.`fc_id` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id`=`ffxiv__freecompany_character`.`character_id` LEFT JOIN (SELECT `rank_id`, COUNT(*) AS `total` FROM `ffxiv__freecompany_character` WHERE `ffxiv__freecompany_character`.`fc_id`=:id GROUP BY `rank_id`) `ranklist` ON `ranklist`.`rank_id` = `ffxiv__freecompany_character`.`rank_id` WHERE `ffxiv__freecompany_character`.`fc_id`=:id AND `current`=1 ORDER BY `ranklist`.`total`, `ranklist`.`rank_id` , `ffxiv__character`.`name`;', [':id' => $this->id], return: 'all');
+        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__freecompany_character`.`character_id` AS `id`, `ffxiv__freecompany_rank`.`rank_id`, `rankname` AS `rank`, `name`, `current`, `ffxiv__character`.`avatar` AS `icon`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE uc__user_to_ff_character.`character_id`=`ffxiv__freecompany_character`.`character_id`) AS `user_id` FROM `ffxiv__freecompany_character`LEFT JOIN `ffxiv__freecompany_rank` ON `ffxiv__freecompany_rank`.`rank_id`=`ffxiv__freecompany_character`.`rank_id` AND `ffxiv__freecompany_rank`.`fc_id`=`ffxiv__freecompany_character`.`fc_id` LEFT JOIN `ffxiv__character` ON `ffxiv__character`.`character_id`=`ffxiv__freecompany_character`.`character_id` LEFT JOIN (SELECT `rank_id`, COUNT(*) AS `total` FROM `ffxiv__freecompany_character` WHERE `ffxiv__freecompany_character`.`fc_id`=:id GROUP BY `rank_id`) `ranklist` ON `ranklist`.`rank_id` = `ffxiv__freecompany_character`.`rank_id` WHERE `ffxiv__freecompany_character`.`fc_id`=:id ORDER BY `ranklist`.`total`, `ranklist`.`rank_id` , `ffxiv__character`.`name`;', [':id' => $this->id], return: 'all');
         #History of ranks. Ensuring that we get only the freshest 100 entries sorted from latest to newest
         $data['ranks_history'] = Query::query('SELECT `date`, `weekly`, `monthly`, `members` FROM `ffxiv__freecompany_ranking` WHERE `fc_id`=:id ORDER BY `date` DESC LIMIT 100;', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
@@ -173,7 +175,9 @@ class FreeCompany extends AbstractEntity
             $this->ranking[$key]['monthly'] = (int)$rank['monthly'];
             $this->ranking[$key]['members'] = (int)$rank['members'];
         }
-        $this->members = $from_db['members'];
+        $members = Splitters::splitByKey($from_db['members'], 'current');
+        $this->members = $members[1] ?? [];
+        $this->past_members = $members[0] ?? [];
     }
     
     /**

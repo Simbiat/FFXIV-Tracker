@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Simbiat\FFXIV\Entities;
 
+use Simbiat\Arrays\Splitters;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\FFXIV\Lodestone;
@@ -23,6 +24,7 @@ class PvPTeam extends AbstractEntity
     public string $data_center;
     public array $old_names = [];
     public array $members = [];
+    public array $past_members = [];
     
     /**
      * Function to get initial data from DB
@@ -39,7 +41,7 @@ class PvPTeam extends AbstractEntity
         #Get old names
         $data['old_names'] = Query::query('SELECT `name` FROM `ffxiv__pvpteam_names` WHERE `pvp_id`=:id AND `name`<>:name', [':id' => $this->id, ':name' => $data['name']], return: 'column');
         #Get members
-        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`character_id` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvp_rank_id`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE uc__user_to_ff_character.`character_id`=`ffxiv__pvpteam_character`.`character_id`) AS `user_id` FROM `ffxiv__pvpteam_character` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvp_rank_id`=`ffxiv__pvpteam_character`.`rank_id` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`character_id`=`ffxiv__character`.`character_id` WHERE `ffxiv__pvpteam_character`.`pvp_id`=:id AND `current`=1 ORDER BY `ffxiv__pvpteam_character`.`rank_id` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
+        $data['members'] = Query::query('SELECT \'character\' AS `type`, `ffxiv__pvpteam_character`.`character_id` AS `id`, `ffxiv__character`.`pvp_matches` AS `matches`, `ffxiv__character`.`name`, `current`, `ffxiv__character`.`avatar` AS `icon`, `ffxiv__pvpteam_rank`.`rank`, `ffxiv__pvpteam_rank`.`pvp_rank_id`, (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE uc__user_to_ff_character.`character_id`=`ffxiv__pvpteam_character`.`character_id`) AS `user_id` FROM `ffxiv__pvpteam_character` LEFT JOIN `ffxiv__pvpteam_rank` ON `ffxiv__pvpteam_rank`.`pvp_rank_id`=`ffxiv__pvpteam_character`.`rank_id` LEFT JOIN `ffxiv__character` ON `ffxiv__pvpteam_character`.`character_id`=`ffxiv__character`.`character_id` WHERE `ffxiv__pvpteam_character`.`pvp_id`=:id ORDER BY `ffxiv__pvpteam_character`.`rank_id` , `ffxiv__character`.`name` ', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
         unset($data['data_center_id'], $data['server_id'], $data['server']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
@@ -117,10 +119,12 @@ class PvPTeam extends AbstractEntity
         ];
         $this->data_center = $from_db['data_center'];
         $this->old_names = $from_db['old_names'];
-        $this->members = $from_db['members'];
-        foreach ($this->members as $key => $member) {
-            $this->members[$key]['matches'] = (int)$member['matches'];
+        foreach ($from_db['members'] as $key => $member) {
+            $from_db['members'][$key]['matches'] = (int)$member['matches'];
         }
+        $members = Splitters::splitByKey($from_db['members'], 'current');
+        $this->members = $members[1] ?? [];
+        $this->past_members = $members[0] ?? [];
     }
     
     /**
