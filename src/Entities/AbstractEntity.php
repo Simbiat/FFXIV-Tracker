@@ -128,6 +128,9 @@ abstract class AbstractEntity
      */
     final public function canScheduleRefresh(string $date_time): bool
     {
+        if (\in_array(HomePage::$method, ['HEAD', 'OPTIONS'])) {
+            return false;
+        }
         if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($date_time)) >= 86400) {
             try {
                 $jobs = Query::query('SELECT COUNT(*) AS `count` FROM `cron__schedule` WHERE `task`=\'ff_update_entity\' AND `priority`=1 AND `registered` >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)', return: 'count');
