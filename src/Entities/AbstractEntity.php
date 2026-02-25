@@ -7,6 +7,7 @@ use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\Website\Config;
 use Simbiat\Website\Errors;
+use Simbiat\Website\HomePage;
 use Simbiat\Website\Images;
 use function dirname;
 use function is_array;
@@ -117,6 +118,27 @@ abstract class AbstractEntity
             }
         }
         return $array;
+    }
+    
+    /**
+     * Check if a job can be scheduled
+     * @param string $date_time
+     *
+     * @return bool
+     */
+    final public function canScheduleRefresh(string $date_time): bool
+    {
+        if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($date_time)) >= 86400) {
+            try {
+                $jobs = Query::query('SELECT COUNT(*) AS `count` FROM `cron__schedule` WHERE `task`=\'ff_update_entity\' AND `priority`=1 AND `registered` >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)', return: 'count');
+                if ($jobs < 100) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                return false;
+            }
+        }
+        return false;
     }
     
     /**

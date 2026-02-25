@@ -57,7 +57,7 @@ class FreeCompany extends AbstractEntity
         #Clean up the data from unnecessary (technical) clutter
         unset($data['gc_id'], $data['estate_id'], $data['gc_icon'], $data['active_id'], $data['city_id'], $data['left'], $data['top'], $data['city_icon']);
         #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($data['updated'])) >= 86400) {
+        if ($this->canScheduleRefresh($data['updated'])) {
             new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
         }
         return $data;
