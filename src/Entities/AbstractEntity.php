@@ -134,7 +134,7 @@ abstract class AbstractEntity
         if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($date_time)) >= 86400) {
             try {
                 $jobs = Query::query('SELECT COUNT(*) AS `count` FROM `cron__schedule` WHERE `task`=\'ff_update_entity\' AND `priority`=1 AND `registered` >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)', return: 'count');
-                if ($jobs < 100) {
+                if ($jobs < 50) {
                     return true;
                 }
             } catch (\Throwable) {
