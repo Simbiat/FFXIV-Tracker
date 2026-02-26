@@ -31,13 +31,20 @@ class Achievement extends Page
         #Sanitize ID
         $id = $path[0] ?? '';
         #Try to get details
-        $output_array['achievement'] = new \Simbiat\FFXIV\Entities\Achievement($id)->getArray();
+        $entity = new \Simbiat\FFXIV\Entities\Achievement($id);
+        $output_array['achievement'] = $entity->getArray();
         #Check if ID was found
         if (empty($output_array['achievement']['id'])) {
             return ['http_error' => 404];
         }
-        #Try to exit early based on modification date
+        #Try to exit early based on the modification date
         $this->lastModified($output_array['achievement']['updated']);
+        $output_array['achievement']['scheduled'] = $entity->scheduleUpdate();
+        if (\in_array('refresh_all_ff', $_SESSION['permissions'], true)) {
+            $output_array['achievement']['can_refresh'] = true;
+        } else {
+            $output_array['achievement']['can_refresh'] = false;
+        }
         #Continue breadcrumbs
         $this->breadcrumb[] = ['href' => '/fftracker/achievements/'.$id, 'name' => $output_array['achievement']['name']];
         #Update meta

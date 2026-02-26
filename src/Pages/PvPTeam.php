@@ -31,13 +31,34 @@ class PvPTeam extends Page
         #Sanitize ID
         $id = $path[0] ?? '';
         #Try to get details
-        $output_array['pvpteam'] = new \Simbiat\FFXIV\Entities\PvPTeam($id)->getArray();
+        $entity = new \Simbiat\FFXIV\Entities\PvPTeam($id);
+        $output_array['pvpteam'] = $entity->getArray();
         #Check if ID was found
         if (empty($output_array['pvpteam']['id'])) {
             return ['http_error' => 404, 'suggested_link' => $this->getLastCrumb()];
         }
-        #Try to exit early based on modification date
+        #Try to exit early based on the modification date
         $this->lastModified($output_array['pvpteam']['dates']['updated']);
+        #Check if linked to the current user
+        if ($_SESSION['user_id'] !== 1 && \in_array($_SESSION['user_id'], \array_column($output_array['pvpteam']['members'], 'user_id'), true)) {
+            $output_array['pvpteam']['linked'] = true;
+        } else {
+            $output_array['pvpteam']['linked'] = false;
+        }
+        $output_array['pvpteam']['dates']['scheduled'] = $entity->scheduleUpdate();
+        if (
+            (
+                empty($output_array['pvpteam']['dates']['deleted']) && (
+                    empty($output_array['pvpteam']['dates']['scheduled']) ||
+                    $output_array['pvpteam']['linked']
+                )
+            ) ||
+            \in_array('refresh_all_ff', $_SESSION['permissions'], true)
+        ) {
+            $output_array['pvpteam']['can_refresh'] = true;
+        } else {
+            $output_array['pvpteam']['can_refresh'] = false;
+        }
         #Continue breadcrumbs
         $this->breadcrumb[] = ['href' => '/fftracker/pvpteams/'.$id, 'name' => $output_array['pvpteam']['name']];
         #Update meta
@@ -58,10 +79,6 @@ class PvPTeam extends Page
         #Merge crest and update favicon
         $output_array['pvpteam']['crest'] = AbstractEntity::crestToFavicon($output_array['pvpteam']['crest']);
         $output_array['favicon'] = $output_array['pvpteam']['crest'];
-        #Check if linked to current user
-        if ($_SESSION['user_id'] !== 1 && \in_array($_SESSION['user_id'], \array_column($output_array['pvpteam']['members'], 'user_id'), true)) {
-            $output_array['pvpteam']['linked'] = true;
-        }
         return $output_array;
     }
 }

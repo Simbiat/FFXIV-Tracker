@@ -31,13 +31,34 @@ class FreeCompany extends Page
         #Sanitize ID
         $id = $path[0] ?? '';
         #Try to get details
-        $output_array['freecompany'] = new \Simbiat\FFXIV\Entities\FreeCompany($id)->getArray();
+        $entity = new \Simbiat\FFXIV\Entities\FreeCompany($id);
+        $output_array['freecompany'] = $entity->getArray();
         #Check if ID was found
         if (empty($output_array['freecompany']['id'])) {
             return ['http_error' => 404, 'suggested_link' => $this->getLastCrumb()];
         }
-        #Try to exit early based on modification date
+        #Try to exit early based on the modification date
         $this->lastModified($output_array['freecompany']['dates']['updated']);
+        $output_array['freecompany']['dates']['scheduled'] = $entity->scheduleUpdate();
+        #Check if linked to the current user
+        if ($_SESSION['user_id'] !== 1 && \in_array($_SESSION['user_id'], \array_column($output_array['freecompany']['members'], 'user_id'), true)) {
+            $output_array['freecompany']['linked'] = true;
+        } else {
+            $output_array['freecompany']['linked'] = false;
+        }
+        if (
+            (
+                empty($output_array['freecompany']['dates']['deleted']) && (
+                    empty($output_array['freecompany']['dates']['scheduled']) ||
+                    $output_array['freecompany']['linked']
+                )
+            ) ||
+            \in_array('refresh_all_ff', $_SESSION['permissions'], true)
+        ) {
+            $output_array['freecompany']['can_refresh'] = true;
+        } else {
+            $output_array['freecompany']['can_refresh'] = false;
+        }
         #Continue breadcrumbs
         $this->breadcrumb[] = ['href' => '/fftracker/freecompanies/'.$id, 'name' => $output_array['freecompany']['name']];
         #Update meta
@@ -58,10 +79,6 @@ class FreeCompany extends Page
         #Merge crest and update favicon
         $output_array['freecompany']['crest'] = AbstractEntity::crestToFavicon($output_array['freecompany']['crest']);
         $output_array['favicon'] = $output_array['freecompany']['crest'];
-        #Check if linked to current user
-        if ($_SESSION['user_id'] !== 1 && \in_array($_SESSION['user_id'], \array_column($output_array['freecompany']['members'], 'user_id'), true)) {
-            $output_array['freecompany']['linked'] = true;
-        }
         return $output_array;
     }
 }

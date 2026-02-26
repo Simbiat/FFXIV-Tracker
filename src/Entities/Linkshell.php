@@ -46,14 +46,6 @@ class Linkshell extends AbstractEntity
         if ($data['crossworld']) {
             unset($data['server']);
         }
-        #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if ($this->canScheduleRefresh($data['updated'])) {
-            if ((int)$data['crossworld'] === 0) {
-                new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'linkshell'], 'message' => 'Updating linkshell with ID '.$this->id, 'priority' => 1])->add();
-            } else {
-                new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'crossworldlinkshell'], 'message' => 'Updating crossworld linkshell with ID '.$this->id, 'priority' => 1])->add();
-            }
-        }
         return $data;
     }
     

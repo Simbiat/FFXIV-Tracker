@@ -56,10 +56,6 @@ class FreeCompany extends AbstractEntity
         $data['ranks_history'] = Query::query('SELECT `date`, `weekly`, `monthly`, `members` FROM `ffxiv__freecompany_ranking` WHERE `fc_id`=:id ORDER BY `date` DESC LIMIT 100;', [':id' => $this->id], return: 'all');
         #Clean up the data from unnecessary (technical) clutter
         unset($data['gc_id'], $data['estate_id'], $data['gc_icon'], $data['active_id'], $data['city_id'], $data['left'], $data['top'], $data['city_icon']);
-        #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if ($this->canScheduleRefresh($data['updated'])) {
-            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'freecompany'], 'message' => 'Updating free company with ID '.$this->id, 'priority' => 1])->add();
-        }
         return $data;
     }
     

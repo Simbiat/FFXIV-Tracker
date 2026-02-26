@@ -6,7 +6,7 @@ namespace Simbiat\FFXIV\Api;
 class Achievement extends General
 {
     #Allowed methods (besides GET, HEAD and OPTIONS) with optional mapping to GET functions
-    protected array $methods = ['GET' => '', 'PUT' => 'update'];
+    protected array $methods = ['GET' => '', 'PATCH' => 'update'];
     #Entity class name
     protected string $entity_class = \Simbiat\FFXIV\Entities\Achievement::class;
     #Name to show in errors

@@ -90,10 +90,6 @@ class Character extends AbstractEntity
             #Clean up the data from unnecessary (technical) clutter
             unset($data['clan_id'], $data['nameday_id'], $data['achievement_id'], $data['category'], $data['subcategory'], $data['how_to'], $data['points'], $data['icon'], $data['item'], $data['item_icon'], $data['item_id'], $data['server_id']);
         }
-        #In case the entry is old enough (at least 1 day old) and register it for update. Also check that this is not a bot.
-        if ($this->canScheduleRefresh($data['updated'])) {
-            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'character'], 'message' => 'Updating character with ID '.$this->id, 'priority' => 1])->add();
-        }
         return $data;
     }
     

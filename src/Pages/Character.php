@@ -30,7 +30,8 @@ class Character extends Page
         #Sanitize ID
         $id = $path[0] ?? '';
         #Try to get details
-        $output_array['character'] = new \Simbiat\FFXIV\Entities\Character($id)->getArray();
+        $entity = new \Simbiat\FFXIV\Entities\Character($id);
+        $output_array['character'] = $entity->getArray();
         #Check if ID was found
         if (empty($output_array['character']['id'])) {
             return ['http_error' => 404, 'suggested_link' => $this->getLastCrumb()];
@@ -41,8 +42,22 @@ class Character extends Page
             #Try to not cache hidden characters in browsers/proxies
             $this->cache_strategy = 'none';
         }
-        #Try to exit early based on modification date
+        #Try to exit early based on the modification date
         $this->lastModified($output_array['character']['dates']['updated']);
+        $output_array['character']['dates']['scheduled'] = $entity->scheduleUpdate();
+        if (
+            (
+                empty($output_array['character']['dates']['deleted']) && (
+                    empty($output_array['character']['dates']['scheduled']) ||
+                    !empty($output_array['character']['owned']['user_id'])
+                )
+            ) ||
+            \in_array('refresh_all_ff', $_SESSION['permissions'], true)
+        ) {
+            $output_array['character']['can_refresh'] = true;
+        } else {
+            $output_array['character']['can_refresh'] = false;
+        }
         #Continue breadcrumbs
         $this->breadcrumb[] = ['href' => '/fftracker/characters/'.$id, 'name' => $output_array['character']['name']];
         #Update meta

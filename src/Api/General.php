@@ -12,7 +12,7 @@ abstract class General extends Api
     #Flag to indicate that this is the lowest level
     protected bool $final_node = true;
     #Allowed methods (besides GET, HEAD and OPTIONS) with optional mapping to GET functions
-    protected array $methods = ['GET' => '', 'PUT' => 'update', 'POST' => 'register'];
+    protected array $methods = ['GET' => '', 'PATCH' => 'update', 'POST' => 'register'];
     #Allowed verbs, that can be added after an ID as an alternative to HTTP Methods or to get alternative representation
     protected array $verbs = ['update' => 'Attempt updating entity', 'register' => 'Attempt to register entity to tracker', 'lodestone' => 'Show data grabbed directly from Lodestone'];
     #Entity class name
@@ -29,7 +29,10 @@ abstract class General extends Api
             $path[1] = '';
         }
         try {
-            if (($_SESSION['user_id'] === 1 || empty($_SESSION['user_id'])) && ($path[1] === 'update' || $path[1] === 'lodestone')) {
+            if ($path[1] === 'update' && !$this->antiCSRF($this->allowed_origins)) {
+                return ['http_error' => 403, 'reason' => 'CSRF validation failed, possibly due to expired session. Please, try to reload the page.'];
+            }
+            if ($path[1] === 'lodestone' && (empty($_SESSION['user_id']) || $_SESSION['user_id'] === 1)) {
                 #User is not authenticated. Abuse of Lodestone can slow down automated updates, and Update requires authentication either way
                 return ['http_error' => 403, 'reason' => 'Authentication required'];
             }

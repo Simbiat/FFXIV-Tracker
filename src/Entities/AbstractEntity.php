@@ -121,27 +121,62 @@ abstract class AbstractEntity
     }
     
     /**
-     * Check if a job can be scheduled
-     * @param string $date_time
+     * Attempt to schedule an update for the entity
      *
-     * @return bool
+     * @return int|null
      */
-    final public function canScheduleRefresh(string $date_time): bool
+    final public function scheduleUpdate(): ?int
     {
+        #Schedule only on GET requests
         if (\in_array(HomePage::$method, ['HEAD', 'OPTIONS'])) {
-            return false;
+            return null;
         }
-        if (empty(HomePage::$user_agent['bot']) && (\time() - \strtotime($date_time)) >= 86400) {
+        #Ignore bots
+        if (!empty(HomePage::$user_agent['bot'])) {
+            return null;
+        }
+        #If the date is empty, most likely an object was not properly prepared
+        if (empty($this->dates['updated'])) {
+            return null;
+        }
+        if ($this::ENTITY_TYPE === 'achievement') {
+            /** @noinspection PhpPossiblePolymorphicInvocationInspection These attributes are specific for achievements */
+            if (\count($this->characters) !== 0 && ($this->category === null || $this->subcategory === null || $this->how_to === null || $this->db_id === null || (\time() - \strtotime($this->updated)) >= 31536000)) {
+                $cron_task = new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2]);
+                $cron_task->add();
+                $scheduled = $cron_task->next_time?->format('Y-m-d H:i:s.u');
+                if ($scheduled) {
+                    return \strtotime($scheduled);
+                }
+                return null;
+            }
+            return null;
+        }
+        if ((\time() - $this->dates['updated']) >= 86400) {
             try {
+                #Check if already scheduled
+                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+                $cron_task = new TaskInstance('ff_update_entity', [(string)$this->id, ($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE]);
+                $scheduled = $cron_task->next_time?->format('Y-m-d H:i:s.u');
+                if ($scheduled) {
+                    return \strtotime($scheduled);
+                }
+                #Check if there were not too many items scheduled earlier
                 $jobs = Query::query('SELECT COUNT(*) AS `count` FROM `cron__schedule` WHERE `task`=\'ff_update_entity\' AND `priority`=1 AND `registered` >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)', return: 'count');
                 if ($jobs < 50) {
-                    return true;
+                    /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+                    $cron_task->settingsFromArray(['message' => 'Updating '.($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE.' with ID '.$this->id])->add();
+                    $scheduled = $cron_task->next_time?->format('Y-m-d H:i:s.u');
+                    if ($scheduled) {
+                        return \strtotime($scheduled);
+                    }
+                    return null;
                 }
             } catch (\Throwable) {
-                return false;
+                return null;
             }
         }
-        return false;
+        return null;
     }
     
     /**
@@ -178,7 +213,7 @@ abstract class AbstractEntity
      *
      * @return string|bool
      */
-    public function update(bool $allow_sleep = false): string|bool
+    final public function update(bool $allow_sleep = false): string|bool
     {
         #Check if ID was set
         if ($this->id === null) {
@@ -200,7 +235,7 @@ abstract class AbstractEntity
         }
         #Check if it has not been updated recently (10 minutes, to protect from potential abuse)
         if (isset($updated) && (\time() - \strtotime($updated)) < 600) {
-            #Return entity type
+            $this->removeFromCron();
             return true;
         }
         #Try to get data from Lodestone, if not already taken
@@ -218,59 +253,49 @@ abstract class AbstractEntity
         }
         #If we got 404, return true. If an entity is to be removed, it's done during getFromLodestone()
         if (isset($this->lodestone['404']) && $this->lodestone['404'] === true) {
+            $this->removeFromCron();
             return true;
         }
         #Characters can mark their profiles as private on Lodestone since Dawntrail
         if ($this::ENTITY_TYPE === 'character' && isset($this->lodestone['private']) && $this->lodestone['private'] === true) {
+            $this->removeFromCron();
             return true;
         }
         unset($this->lodestone['404']);
         if (empty($this->lodestone['name'])) {
             return 'No name found for '.$this::ENTITY_TYPE.' ID `'.$this->id.'`';
         }
-        return $this->updateDB();
+        $result = $this->updateDB();
+        $this->removeFromCron();
+        return $result;
+    }
+    
+    /**
+     * Remove a scheduled job from Cron, if any
+     * @return void
+     */
+    final public function removeFromCron(): void
+    {
+        try {
+            /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+            new TaskInstance('ff_update_entity', [(string)$this->id, ($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE])->delete();
+        } catch (\Throwable $exception) {
+            #Do nothing
+            Errors::error_log($exception, 'Failed to remove task for '.$this::ENTITY_TYPE.' ID `'.$this->id.'`', debug: $this->debug);
+        }
     }
     
     /**
      * To be called from API to allow entity updates
      * @return bool|array|string
      */
-    public function updateFromApi(): bool|array|string
+    final public function updateFromApi(): bool|array|string
     {
-        if ($_SESSION['user_id'] === 1) {
-            return ['http_error' => 403, 'reason' => 'Authentication required'];
-        }
-        if (count(\array_intersect(['refresh_owned_ff', 'refresh_all_ff'], $_SESSION['permissions'])) === 0) {
-            return ['http_error' => 403, 'reason' => 'No `'.\implode('` or `', ['refresh_owned_ff', 'refresh_all_ff']).'` permission'];
-        }
-        $id_column = match ($this::ENTITY_TYPE) {
-            'character' => 'character_id',
-            'achievement' => 'achievement_id',
-            'freecompany' => 'fc_id',
-            'linkshell' => 'ls_id',
-            'pvpteam' => 'pvp_id',
-        };
         try {
-            if ($this::ENTITY_TYPE !== 'achievement') {
-                if ($this::ENTITY_TYPE === 'character') {
-                    if (!\in_array('refresh_all_ff', $_SESSION['permissions'], true)) {
-                        $check = Query::query('SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `character_id` = :id AND `user_id`=:user_id', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
-                        if (!$check) {
-                            return ['http_error' => 403, 'reason' => 'Character not linked to user'];
-                        }
-                    }
-                } else {
-                    #Check if any character currently registered in a group is linked to the user
-                    $check = Query::query('SELECT `'.$id_column.'` FROM `ffxiv__'.$this::ENTITY_TYPE.'_character` WHERE `character_id` IN (SELECT `character_id` FROM `uc__user_to_ff_character` WHERE `user_id`=:user_id)', [':id' => $this->id, ':user_id' => $_SESSION['user_id']], return: 'check');
-                    if (!$check) {
-                        return ['http_error' => 403, 'reason' => 'Group not linked to user'];
-                    }
-                }
-            }
             return $this->update();
         } catch (\Throwable $exception) {
             Errors::error_log($exception, debug: $this->debug);
-            return ['http_error' => 503, 'reason' => 'Failed to validate linkage'];
+            return ['http_error' => 503, 'reason' => 'Failed to update: '.$exception->getMessage()];
         }
     }
     

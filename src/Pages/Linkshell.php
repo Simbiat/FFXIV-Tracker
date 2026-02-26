@@ -32,9 +32,11 @@ class Linkshell extends Page
         $id = $path[0] ?? '';
         #Try to get details
         if ($this::CROSSWORLD) {
-            $output_array['linkshell'] = new \Simbiat\FFXIV\Entities\CrossworldLinkshell($id)->getArray();
+            $entity = new \Simbiat\FFXIV\Entities\CrossworldLinkshell($id);
+            $output_array['linkshell'] = $entity->getArray();
         } else {
-            $output_array['linkshell'] = new \Simbiat\FFXIV\Entities\Linkshell($id)->getArray();
+            $entity = new \Simbiat\FFXIV\Entities\Linkshell($id);
+            $output_array['linkshell'] = $entity->getArray();
         }
         #Check if ID was found
         if (empty($output_array['linkshell']['id'])) {
@@ -43,8 +45,28 @@ class Linkshell extends Page
         if ($this::CROSSWORLD) {
             $output_array['linkshell']['crossworld'] = true;
         }
-        #Try to exit early based on modification date
+        #Try to exit early based on the modification date
         $this->lastModified($output_array['linkshell']['dates']['updated']);
+        #Check if linked to the current user
+        if ($_SESSION['user_id'] !== 1 && \in_array($_SESSION['user_id'], \array_column($output_array['linkshell']['members'], 'user_id'), true)) {
+            $output_array['linkshell']['linked'] = true;
+        } else {
+            $output_array['linkshell']['linked'] = false;
+        }
+        $output_array['linkshell']['dates']['scheduled'] = $entity->scheduleUpdate();
+        if (
+            (
+                empty($output_array['linkshell']['dates']['deleted']) && (
+                    empty($output_array['linkshell']['dates']['scheduled']) ||
+                    $output_array['linkshell']['linked']
+                )
+            ) ||
+            \in_array('refresh_all_ff', $_SESSION['permissions'], true)
+        ) {
+            $output_array['linkshell']['can_refresh'] = true;
+        } else {
+            $output_array['linkshell']['can_refresh'] = false;
+        }
         #Continue breadcrumbs
         $this->breadcrumb[] = ['href' => '/fftracker/'.($this::CROSSWORLD ? 'crossworld_' : '').'linkshells/'.$id, 'name' => $output_array['linkshell']['name']];
         #Update meta
@@ -61,10 +83,6 @@ class Linkshell extends Page
             if (!empty($output_array['linkshell']['community'])) {
                 $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Group\'s community page on Lodestone EU', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/community_finder/'.$output_array['linkshell']['community']];
             }
-        }
-        #Check if linked to current user
-        if ($_SESSION['user_id'] !== 1 && \in_array($_SESSION['user_id'], \array_column($output_array['linkshell']['members'], 'user_id'), true)) {
-            $output_array['linkshell']['linked'] = true;
         }
         return $output_array;
     }

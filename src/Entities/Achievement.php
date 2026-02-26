@@ -61,10 +61,6 @@ class Achievement extends AbstractEntity
                                                     WHERE c.`hidden_achievements` IS NULL
                                                     ORDER BY c.`name`;',
             [':id' => $this->id], return: 'all');
-        #Register for an update if old enough or category or how_to or db_id are empty. Also check that this is not a bot.
-        if (empty(HomePage::$user_agent['bot']) && !empty($data['characters']) && (empty($data['category']) || empty($data['subcategory']) || empty($data['how_to']) || empty($data['db_id']) || (\time() - \strtotime($data['updated'])) >= 31536000)) {
-            new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, 'achievement'], 'message' => 'Updating achievement with ID '.$this->id, 'priority' => 2])->add();
-        }
         return $data;
     }
     
