@@ -162,10 +162,10 @@ abstract class AbstractEntity
                     return \strtotime($scheduled);
                 }
                 #Check if there were not too many items scheduled earlier
-                $jobs = Query::query('SELECT COUNT(*) AS `count` FROM `cron__schedule` WHERE `task`=\'ff_update_entity\' AND `priority`=1 AND `registered` >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)', return: 'count');
+                $jobs = Query::query('SELECT COUNT(*) AS `count` FROM `cron__schedule` WHERE `task`=\'ff_update_entity\' AND `registered` >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)', return: 'count');
                 if ($jobs < 50) {
                     /** @noinspection PhpPossiblePolymorphicInvocationInspection */
-                    $cron_task->settingsFromArray(['message' => 'Updating '.($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE.' with ID '.$this->id])->add();
+                    $cron_task->settingsFromArray(['priority' => 1, 'message' => 'Updating '.($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE.' with ID '.$this->id])->add();
                     $scheduled = $cron_task->next_time?->format('Y-m-d H:i:s.u');
                     if ($scheduled) {
                         return \strtotime($scheduled);
@@ -292,11 +292,21 @@ abstract class AbstractEntity
     final public function updateFromApi(): bool|array|string
     {
         try {
-            return $this->update();
+            $result = $this->update();
         } catch (\Throwable $exception) {
             Errors::error_log($exception, debug: $this->debug);
-            return ['http_error' => 503, 'reason' => 'Failed to update: '.$exception->getMessage()];
+            $result = ['http_error' => 503, 'reason' => 'Failed to update: '.$exception->getMessage()];
         }
+        if ($result !== true) {
+            /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+            $cron_task = new TaskInstance()->settingsFromArray(['task' => 'ff_update_entity', 'arguments' => [(string)$this->id, ($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE], 'message' => 'Updating '.($this::ENTITY_TYPE === 'linkshell' && $this::CROSSWORLD ? 'crossworld' : '').$this::ENTITY_TYPE.' with ID '.$this->id, 'priority' => 3]);
+            $cron_task->add();
+            $scheduled = $cron_task->next_time?->format('Y-m-d H:i:s.u');
+            if ($scheduled && is_array($result)) {
+                $result['reason'] .= 'Scheduled for '.$scheduled;
+            }
+        }
+        return $result;
     }
     
     /**
