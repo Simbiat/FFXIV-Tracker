@@ -20,8 +20,6 @@ class PvPTeam extends Page
     protected string $h1 = 'PvP Team';
     #Page's description. Practically needed only for main pages of a segment, since will be overridden otherwise
     protected string $og_desc = 'PvP Team';
-    #Link to JS module for preload
-    protected string $js_module = 'fftracker/entity';
     #List of permissions, from which at least 1 is required to have access to the page
     protected array $required_permission = ['view_ff'];
     

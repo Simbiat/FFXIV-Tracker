@@ -19,8 +19,6 @@ class Track extends StaticPage
     protected string $h1 = 'Track entity';
     #Page's description. Practically needed only for main pages of segment, since will be overridden otherwise
     protected string $og_desc = 'Register entity for tracking on FFXIV Tracker';
-    #Link to JS module for preload
-    protected string $js_module = 'fftracker/track';
     #List of permissions, from which at least 1 is required to have access to the page
     protected array $required_permission = ['view_ff'];
 

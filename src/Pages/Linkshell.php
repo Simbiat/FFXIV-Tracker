@@ -20,8 +20,6 @@ class Linkshell extends Page
     #Page's description. Practically needed only for main pages of a segment, since will be overridden otherwise
     protected string $og_desc = 'Linkshell';
     protected const CROSSWORLD = false;
-    #Link to JS module for preload
-    protected string $js_module = 'fftracker/entity';
     #List of permissions, from which at least 1 is required to have access to the page
     protected array $required_permission = ['view_ff'];
     
