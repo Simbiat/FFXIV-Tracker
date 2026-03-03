@@ -75,6 +75,9 @@ abstract class General extends Api
         if ($data === 409) {
             return ['http_error' => 409, 'reason' => 'ID `'.$path[0].'` is already registered', 'location' => '/fftracker/'.($this->name_for_links === 'freecompany' ? 'freecompanies' : $this->name_for_links.'s').'/'.$path[0]];
         }
+        if (\is_string($data)) {
+            return ['http_error' => 500, 'reason' => $data];
+        }
         if ($data !== true && empty($data['id'])) {
             if ($path[1] === 'lodestone') {
                 return ['http_error' => 500, 'reason' => 'Failed to get '.mb_strtolower($this->name_for_errors, 'UTF-8').' with ID `'.$path[0].'` from Lodestone'];

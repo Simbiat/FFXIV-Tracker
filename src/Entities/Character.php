@@ -113,9 +113,10 @@ class Character extends AbstractEntity
                 }
                 return 'Request throttled by Lodestone';
             }
-            if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
-                Errors::error_log($exception, $lodestone->getErrors());
+            if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) === 1) {
+                return 'Lodestone not available';
             }
+            Errors::error_log($exception, $lodestone->getErrors());
             return 'Failed to get all necessary data for Character '.$this->id;
         }
         #Check if the character is private

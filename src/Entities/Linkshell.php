@@ -72,7 +72,7 @@ class Linkshell extends AbstractEntity
             if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
                 Errors::error_log($exception, $lodestone->getErrors());
             }
-            return 'Failed to get all necessary data for Character '.$this->id;
+            return 'Failed to get all necessary data for Linkshell '.$this->id;
         }
         if (empty($data['linkshells']) || empty($data['linkshells'][$this->id]['server']) || (empty($data['linkshells'][$this->id]['members']) && (int)$data['linkshells'][$this->id]['members_count'] > 0) || (!empty($data['linkshells'][$this->id]['members']) && \count($data['linkshells'][$this->id]['members']) < (int)$data['linkshells'][$this->id]['members_count'])) {
             if (!empty($data['linkshells'][$this->id]['members']) && $data['linkshells'][$this->id]['members'] === 404) {

@@ -70,7 +70,7 @@ class PvPTeam extends AbstractEntity
             if (\preg_match('/Lodestone not available/ui', $exception->getMessage()) !== 1) {
                 Errors::error_log($exception, $lodestone->getErrors());
             }
-            return 'Failed to get all necessary data for Character '.$this->id;
+            return 'Failed to get all necessary data for PvPTeam '.$this->id;
         }
         if (empty($data['pvpteams'][$this->id]['data_center']) || empty($data['pvpteams'][$this->id]['members'])) {
             if (!empty($data['pvpteams'][$this->id]['members']) && (int)$data['pvpteams'][$this->id]['members'] === 404) {
