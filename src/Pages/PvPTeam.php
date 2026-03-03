@@ -67,9 +67,11 @@ class PvPTeam extends Page
         $this->alt_links = [
             ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Tracker data', 'href' => '/api/fftracker/pvpteams/'.$id],
         ];
+        $output_array['pvpteam']['is_fresh'] = (\time() - $output_array['pvpteam']['dates']['updated'] < 86400);
         if (empty($output_array['pvpteam']['dates']['deleted'])) {
+            $output_array['pvpteam']['lodestone_url'] = 'https://eu.finalfantasyxiv.com/lodestone/pvpteam/'.$id;
             $this->alt_links[] = ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Lodestone data', 'href' => '/api/fftracker/pvpteams/'.$id.'/lodestone'];
-            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/pvpteam/'.$id];
+            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => $output_array['pvpteam']['lodestone_url']];
             if (!empty($output_array['pvpteam']['community'])) {
                 $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Group\'s community page on Lodestone EU', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/community_finder/'.$output_array['pvpteam']['community']];
             }

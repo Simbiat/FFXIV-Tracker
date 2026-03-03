@@ -55,11 +55,13 @@ class Achievement extends Page
             ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Lodestone data', 'href' => '/api/fftracker/achievements/'.$id.'/lodestone/'],
         ];
         if (!empty($output_array['achievement']['db_id'])) {
-            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/playguide/db/achievement/'.$output_array['achievement']['db_id']];
+            $output_array['achievement']['lodestone_url'] = 'https://eu.finalfantasyxiv.com/lodestone/playguide/db/achievement/'.$output_array['achievement']['db_id'];
+            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => $output_array['achievement']['lodestone_url']];
         }
         if (!empty($output_array['achievement']['rewards']['item']['id'])) {
             $this->alt_links[] = ['type' => 'text/html', 'title' => 'Lodestone EU page of the reward item', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/playguide/db/item/'.$output_array['achievement']['rewards']['item']['id']];
         }
+        $output_array['achievement']['is_fresh'] = (\time() - $output_array['achievement']['updated'] < 86400);
         #Set favicon
         if (\is_file(Config::$icons.$output_array['achievement']['icon'])) {
             $output_array['favicon'] = '/assets/images/fftracker/icons/'.$output_array['achievement']['icon'];

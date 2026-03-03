@@ -75,12 +75,16 @@ class Character extends Page
         $this->alt_links = [
             ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Tracker data', 'href' => '/api/fftracker/characters/'.$id],
         ];
+        $output_array['character']['is_fresh'] = (\time() - $output_array['character']['dates']['updated'] < 86400);
         if (empty($output_array['character']['dates']['deleted'])) {
+            $output_array['character']['lodestone_url'] = 'https://eu.finalfantasyxiv.com/lodestone/character/'.$id;
             $this->alt_links[] = ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Lodestone data', 'href' => '/api/fftracker/characters/'.$id.'/lodestone'];
-            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/character/'.$id];
+            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => $output_array['character']['lodestone_url']];
         }
         #Set favicon to avatar
-        $output_array['favicon'] = 'https://img2.finalfantasyxiv.com/f/'.$output_array['character']['avatar_id'].'c0.jpg';
+        if ($output_array['character']['avatar_id'] !== 'defaultf') {
+            $output_array['favicon'] = 'https://img2.finalfantasyxiv.com/f/'.$output_array['character']['avatar_id'].'c0.jpg';
+        }
         return $output_array;
     }
 }

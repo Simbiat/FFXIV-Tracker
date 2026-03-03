@@ -75,9 +75,11 @@ class Linkshell extends Page
         $this->alt_links = [
             ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Tracker data', 'href' => '/api/fftracker/'.($this::CROSSWORLD ? 'crossworld_' : '').'linkshells/'.$id],
         ];
+        $output_array['linkshell']['is_fresh'] = (\time() - $output_array['linkshell']['dates']['updated'] < 86400);
         if (empty($output_array['linkshell']['dates']['deleted'])) {
+            $output_array['linkshell']['lodestone_url'] = 'https://eu.finalfantasyxiv.com/lodestone/'.($this::CROSSWORLD ? 'crossworld_' : '').'linkshell/'.$id;
             $this->alt_links[] = ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Lodestone data', 'href' => '/api/fftracker/'.($this::CROSSWORLD ? 'crossworld_' : '').'linkshells/'.$id.'/lodestone/'];
-            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/'.($this::CROSSWORLD ? 'crossworld_' : '').'linkshell/'.$id];
+            $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => $output_array['linkshell']['lodestone_url']];
             if (!empty($output_array['linkshell']['community'])) {
                 $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Group\'s community page on Lodestone EU', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/community_finder/'.$output_array['linkshell']['community']];
             }
