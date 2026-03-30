@@ -565,53 +565,64 @@ class Character extends AbstractEntity
     
     /**
      * Function to update the entity
+     *
+     * @param bool $hard Whether to do hard removal
+     *
      * @return bool
      */
-    protected function delete(): bool
+    protected function delete(bool $hard = false): bool
     {
-        try {
-            $queries = [];
-            #Remove from Free Company
-            $queries[] = [
+        if ($hard) {
+            $check = $this->getFromLodestone();
+            if ($check !== ['404' => true]) {
+                return false;
+            }
+            $queries = [
+                #Remove from Free Company
+                'DELETE FROM `ffxiv__freecompany_character` WHERE `character_id`=:character_id;',
+                #Remove from PvP Team
+                'DELETE FROM `ffxiv__pvpteam_character` WHERE `character_id`=:character_id;',
+                #Remove from Linkshells
+                'DELETE FROM `ffxiv__linkshell_character` WHERE `character_id`=:character_id;',
+                #Remove from character lists
+                'DELETE FROM `ffxiv__character_friends` WHERE `character_id`=:character_id OR `friend`=:character_id;',
+                #Remove from following list
+                'DELETE FROM `ffxiv__character_following` WHERE `character_id`=:character_id OR `following`=:character_id;',
+                #Remove achievements
+                'DELETE FROM `ffxiv__character_achievement` WHERE `character_id`=:character_id;',
+                #Remove past incarnations
+                'DELETE FROM `ffxiv__character_clans` WHERE `character_id`=:character_id;',
+                #Remove jobs
+                'DELETE FROM `ffxiv__character_jobs` WHERE `character_id`=:character_id;',
+                #Remove name history
+                'DELETE FROM `ffxiv__character_names` WHERE `character_id`=:character_id;',
+                #Remove server history
+                'DELETE FROM `ffxiv__character_servers` WHERE `character_id`=:character_id;',
+                #Remove linked character
+                'DELETE FROM `uc__user_to_ff_character` WHERE `character_id` = :character_id;',
+                #Nullify the avatars
+                'UPDATE `uc__avatars` SET `character_id`=NULL WHERE `character_id` = :character_id;',
+                #Delete character
+                'DELETE FROM `ffxiv__character` WHERE `character_id` = :character_id;',
+            ];
+        } else {
+            $queries = [
+                #Remove from Free Company
                 'UPDATE `ffxiv__freecompany_character` SET `current`=0 WHERE `character_id`=:character_id;',
-                [
-                    ':character_id' => $this->id,
-                ],
-            ];
-            #Remove from PvP Team
-            $queries[] = [
+                #Remove from PvP Team
                 'UPDATE `ffxiv__pvpteam_character` SET `current`=0 WHERE `character_id`=:character_id;',
-                [
-                    ':character_id' => $this->id,
-                ],
-            ];
-            #Remove from Linkshells
-            $queries[] = [
+                #Remove from Linkshells
                 'UPDATE `ffxiv__linkshell_character` SET `current`=0 WHERE `character_id`=:character_id;',
-                [
-                    ':character_id' => $this->id,
-                ],
-            ];
-            #Remove from character lists
-            $queries[] = [
+                #Remove from character lists
                 'UPDATE `ffxiv__character_friends` SET `current`=0 WHERE `character_id`=:character_id OR `friend`=:character_id;',
-                [
-                    ':character_id' => $this->id,
-                ],
-            ];
-            $queries[] = [
+                #Remove from following list
                 'UPDATE `ffxiv__character_following` SET `current`=0 WHERE `character_id`=:character_id OR `following`=:character_id;',
-                [
-                    ':character_id' => $this->id,
-                ],
+                #Update character
+                'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :character_id;',
             ];
-            #Update character
-            $queries[] = [
-                'UPDATE `ffxiv__character` SET `deleted` = COALESCE(`deleted`, CURRENT_TIMESTAMP(6)), `updated`=CURRENT_TIMESTAMP(6) WHERE `character_id` = :id',
-                [':id' => $this->id],
-            ];
-            $result = Query::query($queries);
-            return $result;
+        }
+        try {
+            return Query::query($queries, [':character_id' => $this->id]);
         } catch (\Throwable $exception) {
             Errors::error_log($exception, debug: $this->debug);
             return false;
