@@ -495,7 +495,7 @@ class Statistics
                             UNION
                             (SELECT DATE(`updated`) AS `date`, COUNT(*) AS `count`, \'linkshells\' as `type` FROM `ffxiv__linkshell` GROUP BY `date` ORDER BY `date` DESC LIMIT 30);', return: 'all'
         );
-        $data['updates_stats'] = Splitters::splitByKey($data['updates_stats'], 'datetime');
+        $data['updates_stats'] = Splitters::splitByKey($data['updates_stats'], 'date');
         foreach ($data['updates_stats'] as $date => $datapoint) {
             $data['updates_stats'][$date] = Converters::multiToSingle(Editors::digitToKey($datapoint, 'type', true), 'count');
         }
