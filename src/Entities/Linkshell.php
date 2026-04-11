@@ -3,12 +3,10 @@ declare(strict_types = 1);
 
 namespace Simbiat\FFXIV\Entities;
 
-use Simbiat\Arrays\Splitters;
-use Simbiat\Cron\TaskInstance;
+use Simbiat\ArrayHelpers\Splitters;
 use Simbiat\Database\Query;
 use Simbiat\FFXIV\Lodestone;
 use Simbiat\Website\Errors;
-use Simbiat\Website\HomePage;
 
 /**
  * Class representing a FFXIV linkshell (chat group)

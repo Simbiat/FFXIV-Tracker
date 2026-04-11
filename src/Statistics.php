@@ -4,9 +4,9 @@ declare(strict_types = 1);
 namespace Simbiat\FFXIV;
 
 use JetBrains\PhpStorm\ExpectedValues;
-use Simbiat\Arrays\Converters;
-use Simbiat\Arrays\Editors;
-use Simbiat\Arrays\Splitters;
+use Simbiat\ArrayHelpers\Converters;
+use Simbiat\ArrayHelpers\Editors;
+use Simbiat\ArrayHelpers\Splitters;
 use Simbiat\Cron\TaskInstance;
 use Simbiat\Database\Query;
 use Simbiat\FFXIV\Entities\AbstractEntity;
