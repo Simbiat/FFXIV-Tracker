@@ -122,7 +122,7 @@ abstract class AbstractEntity
     
     /**
      * Attempt to schedule an update for the entity
-     *
+     * @internal
      * @return int|null
      */
     final public function scheduleUpdate(): ?int
@@ -188,7 +188,7 @@ abstract class AbstractEntity
     /**
      * Get entity data from Lodestone
      * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
-     *
+     * @internal
      * @return string|array
      */
     abstract public function getFromLodestone(bool $allow_sleep = false): string|array;
@@ -274,7 +274,7 @@ abstract class AbstractEntity
      * Remove a scheduled job from Cron, if any
      * @return void
      */
-    final public function removeFromCron(): void
+    private function removeFromCron(): void
     {
         try {
             /** @noinspection PhpPossiblePolymorphicInvocationInspection */
@@ -287,6 +287,7 @@ abstract class AbstractEntity
     
     /**
      * To be called from API to allow entity updates
+     * @internal
      * @return bool|array|string
      */
     final public function updateFromApi(): bool|array|string
@@ -311,6 +312,7 @@ abstract class AbstractEntity
     
     /**
      * Register the entity if it has not been registered already
+     * @internal
      * @return bool|int
      */
     public function register(): bool|int

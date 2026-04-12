@@ -25,7 +25,7 @@ class Statistics
     
     /**
      * @param string $type
-     *
+     * @internal
      * @throws \JsonException
      * @throws \Exception
      */

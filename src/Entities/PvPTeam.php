@@ -49,7 +49,7 @@ class PvPTeam extends AbstractEntity
      * Get PvP team data from Lodestone
      *
      * @param bool $allow_sleep Whether to wait in case Lodestone throttles the request (that is throttle on our side)
-     *
+     * @internal
      * @return string|array
      */
     public function getFromLodestone(bool $allow_sleep = false): string|array
