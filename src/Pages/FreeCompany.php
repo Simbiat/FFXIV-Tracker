@@ -75,6 +75,8 @@ class FreeCompany extends Page
             if (!empty($output_array['freecompany']['community'])) {
                 $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Group\'s community page on Lodestone EU', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/community_finder/'.$output_array['freecompany']['community']];
             }
+        } else {
+            $output_array['freecompany']['lodestone_url'] = null;
         }
         #Merge crest and update favicon
         $output_array['freecompany']['crest'] = AbstractEntity::crestToFavicon($output_array['freecompany']['crest']);

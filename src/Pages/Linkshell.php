@@ -31,18 +31,15 @@ class Linkshell extends Page
         #Try to get details
         if ($this::CROSSWORLD) {
             $entity = new \Simbiat\FFXIV\Entities\CrossworldLinkshell($id);
-            $output_array['linkshell'] = $entity->getArray();
         } else {
             $entity = new \Simbiat\FFXIV\Entities\Linkshell($id);
-            $output_array['linkshell'] = $entity->getArray();
         }
+        $output_array['linkshell'] = $entity->getArray();
         #Check if ID was found
         if (empty($output_array['linkshell']['id'])) {
             return ['http_error' => 404, 'suggested_link' => $this->getLastCrumb()];
         }
-        if ($this::CROSSWORLD) {
-            $output_array['linkshell']['crossworld'] = true;
-        }
+        $output_array['linkshell']['crossworld'] = $this::CROSSWORLD;
         #Try to exit early based on the modification date
         $this->lastModified($output_array['linkshell']['dates']['updated']);
         #Check if linked to the current user
@@ -83,6 +80,8 @@ class Linkshell extends Page
             if (!empty($output_array['linkshell']['community'])) {
                 $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Group\'s community page on Lodestone EU', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/community_finder/'.$output_array['linkshell']['community']];
             }
+        } else {
+            $output_array['linkshell']['lodestone_url'] = null;
         }
         return $output_array;
     }

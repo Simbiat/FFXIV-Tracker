@@ -75,6 +75,8 @@ class PvPTeam extends Page
             if (!empty($output_array['pvpteam']['community'])) {
                 $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Group\'s community page on Lodestone EU', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/community_finder/'.$output_array['pvpteam']['community']];
             }
+        } else {
+            $output_array['pvpteam']['lodestone_url'] = null;
         }
         #Merge crest and update favicon
         $output_array['pvpteam']['crest'] = AbstractEntity::crestToFavicon($output_array['pvpteam']['crest']);

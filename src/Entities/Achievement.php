@@ -48,7 +48,8 @@ class Achievement extends AbstractEntity
                                                         \'character\' AS `type`,
                                                         c.`character_id` AS `id`,
                                                         c.`name`,
-                                                        c.`avatar`      AS `icon`
+                                                        c.`avatar`      AS `icon`,
+                                                        (SELECT `user_id` FROM `uc__user_to_ff_character` WHERE `uc__user_to_ff_character`.`character_id`=`c`.`character_id`) AS `user_id`
                                                     FROM `ffxiv__character` AS c
                                                     JOIN (
                                                             SELECT `character_id`

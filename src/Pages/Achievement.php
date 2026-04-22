@@ -57,6 +57,8 @@ class Achievement extends Page
         if (!empty($output_array['achievement']['db_id'])) {
             $output_array['achievement']['lodestone_url'] = 'https://eu.finalfantasyxiv.com/lodestone/playguide/db/achievement/'.$output_array['achievement']['db_id'];
             $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => $output_array['achievement']['lodestone_url']];
+        } else {
+            $output_array['achievement']['lodestone_url'] = null;
         }
         if (!empty($output_array['achievement']['rewards']['item']['id'])) {
             $this->alt_links[] = ['type' => 'text/html', 'title' => 'Lodestone EU page of the reward item', 'href' => 'https://eu.finalfantasyxiv.com/lodestone/playguide/db/item/'.$output_array['achievement']['rewards']['item']['id']];
