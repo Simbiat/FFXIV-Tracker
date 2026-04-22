@@ -80,6 +80,8 @@ class Character extends Page
             $output_array['character']['lodestone_url'] = 'https://eu.finalfantasyxiv.com/lodestone/character/'.$id;
             $this->alt_links[] = ['rel' => 'alternate', 'type' => 'application/json', 'title' => 'JSON representation of Lodestone data', 'href' => '/api/fftracker/characters/'.$id.'/lodestone'];
             $this->alt_links[] = ['rel' => 'alternate', 'type' => 'text/html', 'title' => 'Lodestone EU page', 'href' => $output_array['character']['lodestone_url']];
+        } else {
+            $output_array['character']['lodestone_url'] = null;
         }
         #Set favicon to avatar
         if ($output_array['character']['avatar_id'] !== 'defaultf') {
